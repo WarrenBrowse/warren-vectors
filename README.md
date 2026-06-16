@@ -1,0 +1,39 @@
+# warren-vectors
+
+The frozen **golden vectors** for the Warren VPN client protocol: the
+byte-for-byte wire contract shared by every Warren SDK (Rust, Dart, TypeScript,
+Python, Kotlin, Swift, Java).
+
+This repository is the single source of truth. It is consumed as a **git
+submodule** at `vectors/` by each SDK (for example `warren-sdk-rs` and
+`warren-sdk-dart`), so no SDK ever duplicates the vectors. Every SDK replays
+these files to prove it stays wire-identical to the others.
+
+## Contents
+
+| File | Pins |
+|---|---|
+| `identity.json` | BIP39 to Ed25519 derivation, SS58 `wb...` addresses, request signing |
+| `handshake.json` | Setup / SetupAck, including the `daita_spec` f64 encoding |
+| `multihop_frame.json` | HPKE multihop frame (postcard) |
+| `control.json` | control `/v2` codec |
+| `pop.json` | proof-of-possession |
+| `relays.json` | signed relay list |
+
+## Rules
+
+- **A vector is a contract.** Changing a vector changes the wire format and
+  requires a schema-version bump in the protocol (for example `identity/v2`).
+- **Never edit a vector to make a test pass.** Fix the code under test instead.
+- These files are data, not secrets: they contain test keys and sample frames,
+  never a real server key or user secret.
+
+## Versioning
+
+Consumers pin a specific commit of this repository through their submodule
+gitlink, so a vectors change never silently reaches a consumer. Bump the
+submodule pointer deliberately when adopting a new contract revision.
+
+## License
+
+AGPL-3.0-or-later, matching the Warren engine.
