@@ -1,0 +1,38 @@
+{
+  "_comment": "Frozen cross-implementation golden vector for the Warren signed multi-hop directory (v2). MINTED BY warren-core (warren-relay-selector::sign_multihop_directory) with root=SigningKey::from_bytes([0x01;32]), operational=[0x02;32], server=[0x03;32]; generation=7, signed_at=1000, expires_at=1000+21600; nodes signed with the warrenguard-multihop PKI (relay/exit/attestation + operational cert). Every language SDK MUST verify this exact JSON against the pinned server+root keys and resolve both nodes with 0 dropped. Any change to the canonical JSON layout or the PKI signing payloads is a wire break.",
+  "directory_version": 2,
+  "server_pubkey_hex": "ed4928c628d1c2c6eae90338905995612959273a5c63f93636c14614ac8737d1",
+  "root_pubkey_hex": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+  "signed_json": "{\"version\":2,\"nodes\":[{\"relay\":{\"relay_id\":\"01010101010101010101010101010101\",\"relay_ed25519_pubkey\":\"0202020202020202020202020202020202020202020202020202020202020202\",\"endpoint\":\"198.51.100.1:443\",\"signature\":\"4db9c1aa6a43fde42660a3a4985f050099620a4df7d8cc4f215ed7e700866e52f835f423780a658117e89e0b215d3a96c85ae104be2a2cb9102297f7c187a500\"},\"exit\":{\"exit_id\":\"01010101010101010101010101010101\",\"exit_ed25519_pubkey\":\"0202020202020202020202020202020202020202020202020202020202020202\",\"exit_x25519_multihop_pubkey\":\"0303030303030303030303030303030303030303030303030303030303030303\",\"endpoint\":\"198.51.100.1:443\",\"signature\":\"ab89679fc753778c0af4342b2def520a9c0f99ab2033ea30c478b9f93b4782a7b28951600c188dca32a55b6a3488f3b0168e8b66f909f881d810c1b1e3184c0c\"},\"country\":\"fr\",\"city\":\"City\",\"asn\":24940,\"weight\":100,\"attestation_hex\":\"b778714f72403c192438f195f6d39cce55acd9e4698da279b1e7b9fa4a1e754385bf462571575bf471c16e7d312d494f34c214b6974adf8eb0311be04c536800\"},{\"relay\":{\"relay_id\":\"02020202020202020202020202020202\",\"relay_ed25519_pubkey\":\"0303030303030303030303030303030303030303030303030303030303030303\",\"endpoint\":\"198.51.100.2:443\",\"signature\":\"1b4059415c44833f5b79874d7ba48d5faf67df6a3674730799c8bd5b8889c3c7062071bc753e637b94bfaa3f591b727d2bcac8cd26b247c410bc721c49d40c02\"},\"exit\":{\"exit_id\":\"02020202020202020202020202020202\",\"exit_ed25519_pubkey\":\"0303030303030303030303030303030303030303030303030303030303030303\",\"exit_x25519_multihop_pubkey\":\"0404040404040404040404040404040404040404040404040404040404040404\",\"endpoint\":\"198.51.100.2:443\",\"signature\":\"6d119a6b15cdc36d1ec547c3b61be2378a61b776a32a821d83e25ee819cbb05d8702b5fe7271f8c2f319790b47ae8ecd0a7a6ff1321c07c40da0ebccf6e77e0d\"},\"country\":\"de\",\"city\":\"City\",\"asn\":16276,\"weight\":100,\"attestation_hex\":\"4e98520fe6b2b643769fe315c43543fef3f06c018171d88952bdea340e63d3387b863a53b0dc2bf34e4a052a5c60623c1a399db9540409a15d839a9e3a4e9606\"}],\"generation\":7,\"signed_at\":1000,\"expires_at\":22600,\"operational_pubkey_hex\":\"8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394\",\"operational_cert_hex\":\"fc98890d66d17ff65b7006182b9ad3d499bed1f0f64b9d003e1e6c8e241ac24d8acf9cc13724132f6c230b67583b315538b62b15d72f9bb5b7bd1c8a85c13b06\",\"server_pubkey_hex\":\"ed4928c628d1c2c6eae90338905995612959273a5c63f93636c14614ac8737d1\",\"signature_hex\":\"5e10b7f3577001b59bf98fcc310973d4f25ac6c9184b07fcb79cdccb1cbaef631d490e1c9df1bb761baac9fc36707faa5fbc0c45410d8440a17c5d7b45ae7404\"}",
+  "expected": {
+    "generation": 7,
+    "signed_at": 1000,
+    "expires_at": 22600,
+    "node_count": 2,
+    "dropped": 0,
+    "nodes": [
+      {
+        "exit_id_hex": "01010101010101010101010101010101",
+        "exit_ed25519_pubkey_hex": "0202020202020202020202020202020202020202020202020202020202020202",
+        "exit_x25519_multihop_pubkey_hex": "0303030303030303030303030303030303030303030303030303030303030303",
+        "country": "fr",
+        "city": "City",
+        "asn": 24940,
+        "weight": 100,
+        "endpoint": "198.51.100.1:443",
+        "dns_disabled": false
+      },
+      {
+        "exit_id_hex": "02020202020202020202020202020202",
+        "exit_ed25519_pubkey_hex": "0303030303030303030303030303030303030303030303030303030303030303",
+        "exit_x25519_multihop_pubkey_hex": "0404040404040404040404040404040404040404040404040404040404040404",
+        "country": "de",
+        "city": "City",
+        "asn": 16276,
+        "weight": 100,
+        "endpoint": "198.51.100.2:443",
+        "dns_disabled": false
+      }
+    ]
+  }
+}
