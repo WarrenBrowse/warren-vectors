@@ -34,6 +34,13 @@
       "name": "rejected",
       "_comment": "Rejected: variant tag 3, no payload.",
       "bytes_hex": "c00203"
+    },
+    {
+      "name": "exit_draining",
+      "_comment": "ExitDraining (ADR 36, mid-session drain advisory): variant tag 4, then postcard(u64 deadline_unix_secs as LEB128 varint) + u8 reason_code. deadline 1700000120, reason 0.",
+      "deadline_unix_secs": 1700000120,
+      "reason_code": 0,
+      "bytes_hex": "c00204f8e2cfaa0600"
     }
   ]
 }
