@@ -19,6 +19,7 @@ these files to prove it stays wire-identical to the others.
 | `control.json` | control `/v2` codec |
 | `pop.json` | proof-of-possession |
 | `relays.json` | signed relay list |
+| `multihop_directory.json` | signed multi-hop directory (PKI chain: root, operational, per-node) |
 
 ## Rules
 
@@ -33,6 +34,11 @@ these files to prove it stays wire-identical to the others.
 Consumers pin a specific commit of this repository through their submodule
 gitlink, so a vectors change never silently reaches a consumer. Bump the
 submodule pointer deliberately when adopting a new contract revision.
+
+**Never rewrite published history** (rebase, force-push, amend of a pushed
+commit): consumers pin commits by SHA, and a rewritten `main` orphans every
+pinned gitlink, leaving their CI dependent on GitHub still serving unreachable
+objects.
 
 ## License
 
