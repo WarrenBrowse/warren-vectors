@@ -1,46 +1,89 @@
 {
-  "_comment": "Frozen cross-implementation golden vectors for the Warren multihop control wire (/v2). Every language SDK must reproduce these bytes. Framing: CONTROL_FIRST_BYTE 0xC0, CONTROL_VERSION 0x02, then postcard(WarrenControlMessage). The retired /v1 (version byte 0x01) is rejected. Any change is a wire break and requires a new version byte. The `name` field selects which message a replay test reconstructs.",
+  "_comment": "Warren multi-hop control messages (marker 0xC0 + version 0x03 + postcard payload). v3 adds the DAITA capability echo: wants_daita on IpRequest/IpRequestV7, and daita_spec on IpAssign. daita_spec present = the exit granted the traffic-analysis defense and is driving that maybenot machine on its downlink; absent = the defense is NOT running, which the client must surface instead of padding nothing.",
   "first_byte": 192,
-  "version": 2,
+  "version": 3,
   "vectors": [
     {
       "name": "ip_request_minimal",
       "_comment": "IpRequest with every option absent: variant tag 0, then four None/false bytes.",
-      "bytes_hex": "c0020000000000"
+      "bytes_hex": "c003000000000000",
+      "wants_daita": false
     },
     {
       "name": "ip_request_full",
-      "_comment": "IpRequest: prefer_ipv4 Some(10.66.0.42), client_pubkey Some(0x42*32), wants_ipv6 true, pop_sig Some(0xa5*64 raw, no length prefix).",
-      "prefer_ipv4": [10, 66, 0, 42],
+      "_comment": "IpRequest: prefer_ipv4 Some(10.66.0.42), client_pubkey Some(0x42*32), wants_ipv6 true, pop_sig Some(0xa5*64 raw, no length prefix). wants_daita true.",
+      "prefer_ipv4": [
+        10,
+        66,
+        0,
+        42
+      ],
       "client_pubkey_hex": "4242424242424242424242424242424242424242424242424242424242424242",
       "wants_ipv6": true,
       "pop_sig_hex": "a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5",
-      "bytes_hex": "c00200010a42002a0142424242424242424242424242424242424242424242424242424242424242420101a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5"
+      "bytes_hex": "c00300010a42002a0142424242424242424242424242424242424242424242424242424242424242420101a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a501",
+      "wants_daita": true
     },
     {
       "name": "ip_assign",
-      "_comment": "IpAssign: ipv4 10.66.0.7, prefix_len 24, gateway 10.66.0.1, no IPv6.",
-      "ipv4": [10, 66, 0, 7],
+      "_comment": "IpAssign: ipv4 10.66.0.7, prefix_len 24, gateway 10.66.0.1, no IPv6. daita_spec absent: the exit did not grant DAITA.",
+      "ipv4": [
+        10,
+        66,
+        0,
+        7
+      ],
       "prefix_len": 24,
-      "gateway_ipv4": [10, 66, 0, 1],
-      "bytes_hex": "c002010a420007180a420001000000"
+      "gateway_ipv4": [
+        10,
+        66,
+        0,
+        1
+      ],
+      "bytes_hex": "c003010a420007180a42000100000000",
+      "daita_spec": null
     },
     {
       "name": "ip_exhausted",
       "_comment": "IpExhausted: variant tag 2, no payload.",
-      "bytes_hex": "c00202"
+      "bytes_hex": "c00302"
     },
     {
       "name": "rejected",
       "_comment": "Rejected: variant tag 3, no payload.",
-      "bytes_hex": "c00203"
+      "bytes_hex": "c00303"
     },
     {
       "name": "exit_draining",
       "_comment": "ExitDraining (ADR 36, mid-session drain advisory): variant tag 4, then postcard(u64 deadline_unix_secs as LEB128 varint) + u8 reason_code. deadline 1700000120, reason 0.",
       "deadline_unix_secs": 1700000120,
       "reason_code": 0,
-      "bytes_hex": "c00204f8e2cfaa0600"
+      "bytes_hex": "c00304f8e2cfaa0600"
+    },
+    {
+      "name": "ip_assign_with_daita",
+      "_comment": "IpAssign granting the traffic-analysis defense: daita_spec carries the maybenot machine the exit sampled for THIS session (it drives the same spec on its downlink; the client drives it on its uplink). Synthetic machine string, not a production spec.",
+      "ipv4": [
+        10,
+        66,
+        0,
+        7
+      ],
+      "prefix_len": 24,
+      "gateway_ipv4": [
+        10,
+        66,
+        0,
+        1
+      ],
+      "daita_spec": {
+        "machine_specs": [
+          "02eNpjYEAGjPjEGRnQAQCB2QAI"
+        ],
+        "max_padding_frac": 0.1,
+        "max_blocking_frac": 0.0
+      },
+      "bytes_hex": "c003010a420007180a42000100000001011a3032654e706a594541476a506a4547526e5141514342325141499a9999999999b93f0000000000000000"
     }
   ]
 }
