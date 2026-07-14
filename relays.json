@@ -1,12 +1,12 @@
 {
-  "_comment": "Frozen cross-implementation golden vector for the Warren signed relay list (v9 minimized node/endpoint format). MINTED BY warren-core (warren-relay-selector::sign_relay_list) with server key = SigningKey::from_bytes([0x42; 32]). Every language SDK MUST verify this exact JSON against the pinned pubkey and resolve the same node. Any change to the canonical JSON layout breaks the signature. v9 adds an optional per-node port_forward NAT-PMP capability flag (last field, skipped when absent); v8 adds an optional per-node cover_domain (v6 X.509 SNI, skipped when absent); v7 dropped roles, multihop_pubkey, per-endpoint geoip and the per-endpoint ingress/egress flags; egress is two node-level capability booleans.",
-  "signed_version": 9,
+  "_comment": "Frozen cross-implementation golden vector for the Warren signed relay list (v10 minimized node/endpoint format). MINTED BY warren-core (warren-relay-selector::sign_relay_list) with server key = SigningKey::from_bytes([0x42; 32]). Every language SDK MUST verify this exact JSON against the pinned pubkey and resolve the same node. Any change to the canonical JSON layout breaks the signature. v10 adds an optional per-node tcp_fallback TLS-over-TCP carrier capability flag (last field, skipped when absent); v9 adds an optional per-node port_forward NAT-PMP capability flag; v8 adds an optional per-node cover_domain (v6 X.509 SNI, skipped when absent); v7 dropped roles, multihop_pubkey, per-endpoint geoip and the per-endpoint ingress/egress flags; egress is two node-level capability booleans.",
+  "signed_version": 10,
   "server_pubkey_hex": "2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12",
-  "signed_json": "{\"version\":9,\"nodes\":[{\"id\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"exit_id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"location\":{\"country\":\"NL\",\"city\":\"Amsterdam\"},\"weight\":100,\"active\":true,\"egress\":{\"ipv4\":true,\"ipv6\":false},\"endpoints\":[{\"addr\":\"50.7.46.90\",\"family\":\"ipv4\",\"listeners\":[{\"port\":443,\"transport\":\"quic\",\"alpn\":\"h3\"}]}],\"port_forward\":true}],\"generation\":1,\"signed_at\":1781461221,\"expires_at\":1781547621,\"server_pubkey_hex\":\"2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12\",\"signature_hex\":\"260257f0799042377c5ff4db25c237ad2e1c3981812b081363180b4a6f1eb551516066d09babb203873f47d22fbd7fc99250cb74bb2eb0ae1094bf0d74c07e08\"}",
+  "signed_json": "{\"version\":10,\"nodes\":[{\"id\":\"1111111111111111111111111111111111111111111111111111111111111111\",\"exit_id\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"location\":{\"country\":\"NL\",\"city\":\"Amsterdam\"},\"weight\":100,\"active\":true,\"egress\":{\"ipv4\":true,\"ipv6\":false},\"endpoints\":[{\"addr\":\"50.7.46.90\",\"family\":\"ipv4\",\"listeners\":[{\"port\":443,\"transport\":\"quic\",\"alpn\":\"h3\"}]}],\"port_forward\":true,\"tcp_fallback\":true}],\"generation\":1,\"signed_at\":1783996712,\"expires_at\":1784083112,\"server_pubkey_hex\":\"2152f8d19b791d24453242e15f2eab6cb7cffa7b6a5ed30097960e069881db12\",\"signature_hex\":\"fd3c6936b9a30ff5c5ffec4c92083672b1263a4ccebf97aa65bb82c808ce8d52e0fd6669fc76d1cff077b73f5ccdb75924dce9a3e47531c9a895533e21f75502\"}",
   "expected": {
     "generation": 1,
-    "signed_at": 1781461221,
-    "expires_at": 1781547621,
+    "signed_at": 1783996712,
+    "expires_at": 1784083112,
     "relay_count": 1,
     "relays": [
       {
