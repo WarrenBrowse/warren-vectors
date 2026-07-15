@@ -19,7 +19,7 @@ these files to prove it stays wire-identical to the others.
 | `multihop_frame_v2.json` | `/v2` post-quantum multihop frame (postcard, X-Wing hybrid seal) |
 | `xwing_kem.json` | X-Wing (X25519 + ML-KEM-768) KEM known-answer vectors (draft-connolly-cfrg-xwing-kem) |
 | `pq_hpke_seal_v2.json` | `/v2` post-quantum HPKE seal: X-Wing encaps + sealed frame + signed ML-KEM exit descriptor |
-| `control.json` | control `/v2` codec |
+| `control.json` | control `/v3` codec (marker `0xC0 0x03`, DAITA capability echo) |
 | `pop.json` | proof-of-possession |
 | `relays.json` | signed relay list |
 | `multihop_directory.json` | signed multi-hop directory (PKI chain: root, operational, per-node) |
