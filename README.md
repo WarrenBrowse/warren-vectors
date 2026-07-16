@@ -23,6 +23,8 @@ these files to prove it stays wire-identical to the others.
 | `pop.json` | proof-of-possession |
 | `relays.json` | signed relay list |
 | `multihop_directory.json` | signed multi-hop directory (PKI chain: root, operational, per-node) |
+| `http_v1.json` | client-facing `/v1` HTTP API DTO shapes (`warren_contract::dto`) |
+| `http_fallback_sequence.json` | canonical anti-censorship HTTP fallback attempt sequence |
 
 ## Rules
 

@@ -46,6 +46,34 @@ def check_hex_fields(name: str, node, path: str) -> None:
             check_hex_fields(name, item, f"{path}[{i}]")
 
 
+def check_fallback_sequence(name: str, data) -> None:
+    """The anti-censorship fallback sequence must be canonical: primary host
+    with SNI, then each alternative host with SNI, then the primary host
+    without SNI. No alternative is ever tried without SNI."""
+    primary = data.get("primary_host")
+    alts = data.get("alternative_hosts")
+    seq = data.get("expected_candidates")
+    if not isinstance(primary, str) or not primary:
+        errors.append(f"{name}: primary_host must be a non-empty string")
+        return
+    if not isinstance(alts, list) or not all(isinstance(a, str) for a in alts):
+        errors.append(f"{name}: alternative_hosts must be a list of strings")
+        return
+    if not isinstance(seq, list) or not seq:
+        errors.append(f"{name}: expected_candidates must be a non-empty list")
+        return
+    expected = (
+        [{"host": primary, "sni": True}]
+        + [{"host": a, "sni": True} for a in alts]
+        + [{"host": primary, "sni": False}]
+    )
+    if seq != expected:
+        errors.append(
+            f"{name}: expected_candidates is not the canonical sequence "
+            "(primary+SNI, each alternative+SNI, primary no-SNI)"
+        )
+
+
 def main() -> int:
     vector_files = sorted(ROOT.glob("*.json"))
     if not vector_files:
@@ -61,6 +89,8 @@ def main() -> int:
             errors.append(f"{file.name}: does not parse as JSON ({exc})")
             continue
         check_hex_fields(file.name, data, "$")
+        if file.name == "http_fallback_sequence.json":
+            check_fallback_sequence(file.name, data)
         if f"`{file.name}`" not in readme:
             errors.append(f"README.md: contents table does not list {file.name}")
 

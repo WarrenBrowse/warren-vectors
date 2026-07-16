@@ -1,0 +1,11 @@
+{
+  "_comment": "Canonical anti-censorship HTTP fallback attempt sequence, the cross-language mirror of warren_contract::fallback::fallback_candidates. When the primary control-plane host is unreachable at connect time, a client retries the same request across hosts and SNI settings in this exact order: primary host with SNI, then each alternative host in order with SNI, then the primary host WITHOUT SNI. It stops at the first attempt that connects; when all fail it reports every host blocked. CORE-FIRST from the production warren-api-client: an alternative host is NEVER tried without SNI (the divergent four-step SDK variant is not canonical). Synthetic hosts only.",
+  "primary_host": "api.example.com",
+  "alternative_hosts": ["alt1.example.net", "alt2.example.org"],
+  "expected_candidates": [
+    { "host": "api.example.com", "sni": true },
+    { "host": "alt1.example.net", "sni": true },
+    { "host": "alt2.example.org", "sni": true },
+    { "host": "api.example.com", "sni": false }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "_comment": "Golden wire vectors for the client-facing Warren /v1 HTTP API DTOs, defined once in warren_contract::dto and served/consumed by both the backend and every SDK. Each case is the exact JSON the DTO serializes to (a tolerant reader: unknown fields are ignored, absent optionals are omitted, not null). An SDK MUST deserialize each request/response into its DTO and re-serialize to the same object. A field rename or retype breaks the deployed server or a sibling SDK silently at runtime, so these freeze the shape. Synthetic values only: pubkey_ss58 wb7uuPeV... encodes the well-known test pubkey 0707..07, the IP is an RFC 5737 documentation address.",
+  "register_account_request": {
+    "_endpoint": "POST /v1/register",
+    "_note": "referral_code is omitted (not null) when absent",
+    "json": {
+      "pubkey_ss58": "wb7uuPeV524ZMHaQnrrsgXkRNirw6ntzcMaQ1vgcNsMEMRCDm",
+      "voucher_secret": "ABCD-EFGH-JKMN-PQRS"
+    }
+  },
+  "subscription_response": {
+    "_endpoint": "GET /v1/subscription",
+    "json": {
+      "expires_at": 1700000000
+    }
+  },
+  "check_response": {
+    "_endpoint": "GET /v1/check",
+    "_note": "exit_country and exit_city are omitted when the peer is not an exit",
+    "json": {
+      "ip": "192.0.2.4",
+      "is_exit": false
+    }
+  },
+  "session_open_request": {
+    "_endpoint": "POST /v1/session/open",
+    "_note": "max_devices and the v2 token_b64 are omitted when absent",
+    "json": {
+      "pubkey_ss58": "wb7uuPeV524ZMHaQnrrsgXkRNirw6ntzcMaQ1vgcNsMEMRCDm",
+      "device_id_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "exit_id": "exit-nl-1"
+    }
+  },
+  "session_open_response": {
+    "_endpoint": "POST /v1/session/open",
+    "_note": "reason is omitted when admitted; pre-v2 exits pin this three-field shape",
+    "json": {
+      "admitted": true,
+      "max": 5,
+      "current": 1
+    }
+  }
+}
