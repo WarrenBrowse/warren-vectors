@@ -14,7 +14,6 @@ these files to prove it stays wire-identical to the others.
 | File | Pins |
 |---|---|
 | `identity.json` | BIP39 to Ed25519 derivation, SS58 `wb...` addresses, request signing |
-| `handshake.json` | Setup / SetupAck, including the `daita_spec` f64 encoding |
 | `multihop_frame.json` | HPKE multihop frame (postcard) |
 | `multihop_frame_v2.json` | `/v2` post-quantum multihop frame (postcard, X-Wing hybrid seal) |
 | `xwing_kem.json` | X-Wing (X25519 + ML-KEM-768) KEM known-answer vectors (draft-connolly-cfrg-xwing-kem) |
