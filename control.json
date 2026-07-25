@@ -54,6 +54,18 @@
       "bytes_hex": "c00303"
     },
     {
+      "name": "rejected_banned_unspecified",
+      "_comment": "RejectedBanned (account revoked / banned on the exit's signed CRL): variant tag 6, then a u8 reason_code. reason_code 0 = unspecified (generic suspension). The code is opaque to the engine; the deployer's control-plane assigns its meaning and the client maps it to a localized suspension message. Distinct from 'rejected' (tag 3, renewable) so the client shows a suspension, not a renew prompt.",
+      "reason_code": 0,
+      "bytes_hex": "c0030600"
+    },
+    {
+      "name": "rejected_banned_port_forwarding",
+      "_comment": "RejectedBanned with reason_code 1 = port-forwarding abuse (the Warren control-plane's coded reason): same variant tag 6, the trailing u8 carries the specific reason so the client can show a forwarded-port-specific suspension. An unrecognized code decodes fine and falls back to the generic message.",
+      "reason_code": 1,
+      "bytes_hex": "c0030601"
+    },
+    {
       "name": "exit_draining",
       "_comment": "ExitDraining (ADR 36, mid-session drain advisory): variant tag 4, then postcard(u64 deadline_unix_secs as LEB128 varint) + u8 reason_code. deadline 1700000120, reason 0.",
       "deadline_unix_secs": 1700000120,
