@@ -1,0 +1,160 @@
+{
+  "_comment": "Warren NAT-PMP port forwarding: RFC 6886 frames plus the three Warren extensions an SDK must reproduce byte for byte. (1) result codes 6 SuggestedPortUnavailable and 7 RateLimited, which RFC 6886 has no equivalent for because it lets a server substitute a port where Warren refuses. (2) the RateLimitInfo response trailer, 4 bytes after the 16-byte Map response. (3) the credential trailer on a Map request, 4-byte header then an opaque body, which buys one forwarded port (warren-core doc 99). Every trailer is length-gated on parse, so a peer that ignores it reads the frame exactly as an RFC-only peer would.",
+  "version": 0,
+  "response_bit": 128,
+  "map_request_len": 12,
+  "credential_trailer_magic": 22343,
+  "max_credential_len": 512,
+  "requests": [
+    {
+      "name": "external_address_request",
+      "_comment": "GET PUBLIC ADDRESS (RFC 6886 3.2): version, opcode 0, no payload.",
+      "kind": "external_address",
+      "bytes_hex": "0000"
+    },
+    {
+      "name": "map_udp_request",
+      "_comment": "MAP UDP (3.3): internal 8080, suggested external 50000, lifetime 3600.",
+      "kind": "map",
+      "proto": "udp",
+      "internal_port": 8080,
+      "suggested_external_port": 50000,
+      "lifetime_secs": 3600,
+      "bytes_hex": "000100001f90c35000000e10"
+    },
+    {
+      "name": "map_tcp_request_release",
+      "_comment": "Delete-mapping (3.3.2): lifetime 0 and suggested external 0 on the live tuple.",
+      "kind": "map",
+      "proto": "tcp",
+      "internal_port": 8080,
+      "suggested_external_port": 0,
+      "lifetime_secs": 0,
+      "bytes_hex": "000200001f90000000000000"
+    },
+    {
+      "name": "map_tcp_request_server_picks",
+      "_comment": "Suggested external 0 = the server picks the port.",
+      "kind": "map",
+      "proto": "tcp",
+      "internal_port": 51413,
+      "suggested_external_port": 0,
+      "lifetime_secs": 600,
+      "bytes_hex": "00020000c8d5000000000258"
+    }
+  ],
+  "credential_requests": [
+    {
+      "name": "map_udp_request_with_credential",
+      "_comment": "map_udp_request, then the credential trailer: magic 0x5747, length 8 big endian, then the opaque body. The 12 RFC bytes in front are untouched.",
+      "request": "map_udp_request",
+      "credential_hex": "0102030405060708",
+      "bytes_hex": "000100001f90c35000000e10574700080102030405060708"
+    },
+    {
+      "name": "map_udp_request_empty_credential",
+      "_comment": "A zero-length credential is still a well-formed trailer, and reads back as an empty slice rather than as no credential at all.",
+      "request": "map_udp_request",
+      "credential_hex": "",
+      "bytes_hex": "000100001f90c35000000e1057470000"
+    }
+  ],
+  "malformed_credential_trailers": [
+    {
+      "name": "wrong_magic",
+      "_comment": "Trailing bytes that are not a credential (padding, a probe, a future extension) must read as no credential, never as a refused request.",
+      "bytes_hex": "000100001f90c35000000e100000000401020304"
+    },
+    {
+      "name": "truncated_body",
+      "_comment": "Header announces 8 bytes, 3 follow.",
+      "bytes_hex": "000100001f90c35000000e1057470008010203"
+    },
+    {
+      "name": "length_past_maximum",
+      "_comment": "Announced length 513 is past MAX_CREDENTIAL_LEN.",
+      "bytes_hex": "000100001f90c35000000e1057470201"
+    },
+    {
+      "name": "header_truncated",
+      "_comment": "Two trailing bytes cannot even hold the 4-byte header.",
+      "bytes_hex": "000100001f90c35000000e105747"
+    }
+  ],
+  "responses": [
+    {
+      "name": "external_address_response",
+      "_comment": "3.2.1: result 0, epoch 42, public IPv4 203.0.113.42.",
+      "kind": "external_address",
+      "result_code": 0,
+      "epoch_secs": 42,
+      "external_ip": "203.0.113.42",
+      "bytes_hex": "008000000000002acb00712a"
+    },
+    {
+      "name": "map_response_success",
+      "_comment": "3.3.1 with no Warren trailer: an RFC-only or pre-trailer server.",
+      "kind": "map",
+      "proto": "udp",
+      "result_code": 0,
+      "epoch_secs": 42,
+      "internal_port": 8080,
+      "external_port": 50000,
+      "lifetime_secs": 3600,
+      "rate_limit": null,
+      "bytes_hex": "008100000000002a1f90c35000000e10"
+    },
+    {
+      "name": "map_response_success_with_rate_limit",
+      "_comment": "Same grant, plus the 4-byte trailer: 3 attempts left, window resets in 900 s. Byte 1 of the trailer is reserved and zero.",
+      "kind": "map",
+      "proto": "udp",
+      "result_code": 0,
+      "epoch_secs": 42,
+      "internal_port": 8080,
+      "external_port": 50000,
+      "lifetime_secs": 3600,
+      "rate_limit": { "attempts_remaining": 3, "window_reset_secs": 900 },
+      "bytes_hex": "008100000000002a1f90c35000000e1003000384"
+    },
+    {
+      "name": "map_response_suggested_port_unavailable",
+      "_comment": "Warren result code 6: the pinned port is held by somebody else. External port and lifetime are 0, so a client cannot read a refusal as a grant.",
+      "kind": "map",
+      "proto": "tcp",
+      "result_code": 6,
+      "epoch_secs": 42,
+      "internal_port": 8080,
+      "external_port": 0,
+      "lifetime_secs": 0,
+      "rate_limit": { "attempts_remaining": 4, "window_reset_secs": 0 },
+      "bytes_hex": "008200060000002a1f9000000000000004000000"
+    },
+    {
+      "name": "map_response_rate_limited",
+      "_comment": "Warren result code 7: retry after the trailer's window_reset_secs (137 s here), with no attempts left.",
+      "kind": "map",
+      "proto": "udp",
+      "result_code": 7,
+      "epoch_secs": 42,
+      "internal_port": 8080,
+      "external_port": 0,
+      "lifetime_secs": 0,
+      "rate_limit": { "attempts_remaining": 0, "window_reset_secs": 137 },
+      "bytes_hex": "008100070000002a1f9000000000000000000089"
+    },
+    {
+      "name": "map_response_out_of_resources",
+      "_comment": "RFC result code 4: the per-client port quota, or an exhausted pool.",
+      "kind": "map",
+      "proto": "tcp",
+      "result_code": 4,
+      "epoch_secs": 42,
+      "internal_port": 8080,
+      "external_port": 0,
+      "lifetime_secs": 0,
+      "rate_limit": { "attempts_remaining": 2, "window_reset_secs": 60 },
+      "bytes_hex": "008200040000002a1f900000000000000200003c"
+    }
+  ]
+}

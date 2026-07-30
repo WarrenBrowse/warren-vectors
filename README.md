@@ -24,6 +24,7 @@ these files to prove it stays wire-identical to the others.
 | `multihop_directory.json` | signed multi-hop directory (PKI chain: root, operational, per-node) |
 | `http_v1.json` | client-facing `/v1` HTTP API DTO shapes (`warren_contract::dto`) |
 | `http_fallback_sequence.json` | canonical anti-censorship HTTP fallback attempt sequence |
+| `natpmp.json` | NAT-PMP port forwarding (RFC 6886 frames, the Warren result codes, the rate-limit and credential trailers) |
 
 ## Rules
 
