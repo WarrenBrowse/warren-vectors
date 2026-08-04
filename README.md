@@ -1,13 +1,16 @@
 # warren-vectors
 
 The frozen **golden vectors** for the Warren VPN client protocol: the
-byte-for-byte wire contract shared by every Warren SDK (Rust, Dart, TypeScript,
-Python, Kotlin, Swift, Java).
+byte-for-byte wire contract shared by every Warren SDK (Rust, Dart,
+TypeScript).
 
 This repository is the single source of truth. It is consumed as a **git
 submodule** at `vectors/` by each SDK (for example `warren-sdk-rs` and
 `warren-sdk-dart`), so no SDK ever duplicates the vectors. Every SDK replays
 these files to prove it stays wire-identical to the others.
+
+Warren is a VPN by [WarrenBrowse](https://github.com/WarrenBrowse); see
+[warrenbrowse.com](https://warrenbrowse.com) for the product itself.
 
 ## Contents
 
@@ -33,6 +36,20 @@ these files to prove it stays wire-identical to the others.
 - **Never edit a vector to make a test pass.** Fix the code under test instead.
 - These files are data, not secrets: they contain test keys and sample frames,
   never a real server key or user secret.
+
+## Validation
+
+CI runs `scripts/validate_vectors.py` on every push and pull request. It checks
+that every vector file is well-formed JSON, that every `*_hex` field is
+even-length lowercase hex, that every embedded `signed_json` payload parses,
+and that the Contents table above lists every vector file. Run it locally with:
+
+```sh
+python3 scripts/validate_vectors.py
+```
+
+Wire semantics are proven by the SDKs replaying these files; this script only
+guards structure.
 
 ## Versioning
 
