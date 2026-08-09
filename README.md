@@ -10,7 +10,7 @@ submodule** at `vectors/` by each SDK (for example `warren-sdk-rs` and
 these files to prove it stays wire-identical to the others.
 
 Warren is a VPN by [WarrenBrowse](https://github.com/WarrenBrowse); see
-[warrenbrowse.com](https://warrenbrowse.com) for the product itself.
+[warren.ro](https://warren.ro) for the product itself.
 
 ## Contents
 
