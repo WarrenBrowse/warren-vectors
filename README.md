@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/warren-logo.svg" alt="Warren" width="130"/>
+</p>
+
 # warren-vectors
 
 The frozen **golden vectors** for the Warren VPN client protocol: the
