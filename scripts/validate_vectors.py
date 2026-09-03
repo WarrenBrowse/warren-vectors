@@ -270,6 +270,21 @@ def check_announcements(name: str, data) -> None:
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     if data.get("canonical_sha256_hex") != digest:
         errors.append(f"{name}: canonical_sha256_hex is not sha256(canonical_preimage_utf8)")
+    # A pure-ASCII preimage with no & < > is reproduced byte for byte by every
+    # encoder on earth, so it proves nothing: Go escapes & < > by default, and
+    # Python and Jackson can emit \uXXXX where serde_json emits raw UTF-8. The
+    # corpus must carry both shapes or a sibling SDK passes here and diverges
+    # the first time an operator writes a Romanian body.
+    if raw.isascii():
+        errors.append(
+            f"{name}: the pinned preimage is pure ASCII, so it cannot catch an "
+            f"implementation that escapes non-ASCII"
+        )
+    if not any(c in raw for c in "&<>"):
+        errors.append(
+            f"{name}: the pinned preimage carries no & < >, so it cannot catch an "
+            f"implementation that HTML-escapes them"
+        )
 
     signer = data.get("signer")
     envelope = data.get("envelope")
@@ -303,8 +318,9 @@ def check_announcements(name: str, data) -> None:
             errors.append(f"{where}: key order {list(a.keys())} is not the frozen {ann_order}")
         if a.get("level") not in ANNOUNCEMENT_LEVELS:
             errors.append(f"{where}: level must be one of {sorted(ANNOUNCEMENT_LEVELS)}")
-        if not isinstance(a.get("voucher_offer"), bool):
-            errors.append(f"{where}: voucher_offer must be a boolean")
+        campaign = a.get("voucher_campaign_id")
+        if campaign is not None and not isinstance(campaign, str):
+            errors.append(f"{where}: voucher_campaign_id must be a string or null")
         cta = a.get("cta")
         if cta is None:
             continue

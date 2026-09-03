@@ -33,7 +33,7 @@ Warren is a VPN by [WarrenBrowse](https://github.com/WarrenBrowse); see
 | `http_fallback_sequence.json` | canonical anti-censorship HTTP fallback attempt sequence |
 | `natpmp.json` | NAT-PMP port forwarding (RFC 6886 frames, the Warren result codes, the rate-limit and credential trailers) |
 | `forum_login_v1.json` | forum wallet login and in-app report against warren-connect: the `X-Warren` signing inputs, the exact signed request bytes, and the provider's answer per outcome |
-| `announcements_v1.json` | signed launch-announcement envelope v1 (`GET /v1/announcements`): the frozen canonical preimage, its signature, and the published document |
+| `announcements_v1.json` | signed launch-announcement envelope v1 (`GET /v1/announcements`): the frozen canonical preimage, its signature, and the published document. One announcement carries `&`, `<`, `>` and non-ASCII letters on purpose, so an implementation that HTML-escapes or `\uXXXX`-escapes them fails here rather than on a user's screen |
 
 ## Rules
 

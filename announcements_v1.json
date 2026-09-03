@@ -1,6 +1,7 @@
 {
   "version": 1,
   "_comment": "Signed announcements envelope v1 (GET /v1/announcements). A NEW envelope beside the notices one on purpose: notice verification rebuilds the canonical preimage from the client's own struct, so a field a deployed client does not know makes every notice fail verification and that client shows nothing at all. Every value here is synthetic.",
+  "_encoding_anchor": "The third announcement exists to pin the ENCODING, not the content: its body carries an ampersand, an angle bracket pair and two non-ASCII letters, and its call-to-action URL carries two query parameters. The canonical preimage below emits all of them raw, UTF-8, unescaped. An implementation that HTML-escapes & < > (Go's encoding/json does by default) or emits \\uXXXX for non-ASCII (Python json.dumps and Jackson's ESCAPE_NON_ASCII do) produces different bytes and therefore a different signature, which is the failure this file exists to catch before an operator writes the first Romanian body.",
   "signer": {
     "signing_key_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
     "server_pubkey_hex": "0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0"
@@ -24,8 +25,7 @@
     "body",
     "level",
     "cta",
-    "campaign_id",
-    "voucher_offer",
+    "voucher_campaign_id",
     "min_client_version",
     "max_client_version",
     "expires_at"
@@ -40,8 +40,7 @@
         "label": "Open the download page",
         "url": "https://download.example.test/warren"
       },
-      "campaign_id": "prod-launch",
-      "voucher_offer": true,
+      "voucher_campaign_id": "prod-launch",
       "min_client_version": "1.1.0",
       "max_client_version": null,
       "expires_at": 1700021000
@@ -52,15 +51,28 @@
       "body": "The API is unavailable tonight between 02:00 and 03:00 UTC.",
       "level": "warning",
       "cta": null,
-      "campaign_id": null,
-      "voucher_offer": false,
+      "voucher_campaign_id": null,
+      "min_client_version": null,
+      "max_client_version": null,
+      "expires_at": null
+    },
+    {
+      "id": "0000000000000003",
+      "headline": "Launch offer details",
+      "body": "Terms & conditions apply: the offer runs 10:00 <-> 18:00 at the București café.",
+      "level": "info",
+      "cta": {
+        "label": "Read the terms",
+        "url": "https://download.example.test/terms?a=1&b=2"
+      },
+      "voucher_campaign_id": null,
       "min_client_version": null,
       "max_client_version": null,
       "expires_at": null
     }
   ],
-  "canonical_preimage_utf8": "{\"version\":1,\"announcements\":[{\"id\":\"0000000000000001\",\"headline\":\"Warren production is open\",\"body\":\"Your beta account gets one free month on production.\",\"level\":\"info\",\"cta\":{\"label\":\"Open the download page\",\"url\":\"https://download.example.test/warren\"},\"campaign_id\":\"prod-launch\",\"voucher_offer\":true,\"min_client_version\":\"1.1.0\",\"max_client_version\":null,\"expires_at\":1700021000},{\"id\":\"0000000000000002\",\"headline\":\"Scheduled maintenance\",\"body\":\"The API is unavailable tonight between 02:00 and 03:00 UTC.\",\"level\":\"warning\",\"cta\":null,\"campaign_id\":null,\"voucher_offer\":false,\"min_client_version\":null,\"max_client_version\":null,\"expires_at\":null}],\"generation\":12,\"signed_at\":1700000000,\"expires_at\":1700021600,\"server_pubkey_hex\":\"0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0\"}",
-  "canonical_sha256_hex": "6a788d7efa4a782595b5a0b90ad097c77ee2e06f7e47e9b8afd8759719f4a3ba",
-  "signature_hex": "e8fb824fb57a6dd5eaac45ee817e967c653312b6c366213357fe6d2d82229ca3174c84c4f527cfa664d3f34c834dad9a1ecfe8dae17c12ff99787fa30664ef03",
-  "signed_json": "{\"version\":1,\"announcements\":[{\"id\":\"0000000000000001\",\"headline\":\"Warren production is open\",\"body\":\"Your beta account gets one free month on production.\",\"level\":\"info\",\"cta\":{\"label\":\"Open the download page\",\"url\":\"https://download.example.test/warren\"},\"campaign_id\":\"prod-launch\",\"voucher_offer\":true,\"min_client_version\":\"1.1.0\",\"max_client_version\":null,\"expires_at\":1700021000},{\"id\":\"0000000000000002\",\"headline\":\"Scheduled maintenance\",\"body\":\"The API is unavailable tonight between 02:00 and 03:00 UTC.\",\"level\":\"warning\",\"cta\":null,\"campaign_id\":null,\"voucher_offer\":false,\"min_client_version\":null,\"max_client_version\":null,\"expires_at\":null}],\"generation\":12,\"signed_at\":1700000000,\"expires_at\":1700021600,\"server_pubkey_hex\":\"0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0\",\"signature_hex\":\"e8fb824fb57a6dd5eaac45ee817e967c653312b6c366213357fe6d2d82229ca3174c84c4f527cfa664d3f34c834dad9a1ecfe8dae17c12ff99787fa30664ef03\"}"
+  "canonical_preimage_utf8": "{\"version\":1,\"announcements\":[{\"id\":\"0000000000000001\",\"headline\":\"Warren production is open\",\"body\":\"Your beta account gets one free month on production.\",\"level\":\"info\",\"cta\":{\"label\":\"Open the download page\",\"url\":\"https://download.example.test/warren\"},\"voucher_campaign_id\":\"prod-launch\",\"min_client_version\":\"1.1.0\",\"max_client_version\":null,\"expires_at\":1700021000},{\"id\":\"0000000000000002\",\"headline\":\"Scheduled maintenance\",\"body\":\"The API is unavailable tonight between 02:00 and 03:00 UTC.\",\"level\":\"warning\",\"cta\":null,\"voucher_campaign_id\":null,\"min_client_version\":null,\"max_client_version\":null,\"expires_at\":null},{\"id\":\"0000000000000003\",\"headline\":\"Launch offer details\",\"body\":\"Terms & conditions apply: the offer runs 10:00 <-> 18:00 at the București café.\",\"level\":\"info\",\"cta\":{\"label\":\"Read the terms\",\"url\":\"https://download.example.test/terms?a=1&b=2\"},\"voucher_campaign_id\":null,\"min_client_version\":null,\"max_client_version\":null,\"expires_at\":null}],\"generation\":12,\"signed_at\":1700000000,\"expires_at\":1700021600,\"server_pubkey_hex\":\"0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0\"}",
+  "canonical_sha256_hex": "79295b2e89cb1d6800508243fab706b977d9350f8c862f22c532453607aaaefa",
+  "signature_hex": "b9dd8495721f59bce00e2a7603b7012d48ba48db7c8bd71f6d777c55e738da1cd5ed1de0b87a3bdedb723c996786dfcbf6c1be54955aff6a6c261e3de75dae06",
+  "signed_json": "{\"version\":1,\"announcements\":[{\"id\":\"0000000000000001\",\"headline\":\"Warren production is open\",\"body\":\"Your beta account gets one free month on production.\",\"level\":\"info\",\"cta\":{\"label\":\"Open the download page\",\"url\":\"https://download.example.test/warren\"},\"voucher_campaign_id\":\"prod-launch\",\"min_client_version\":\"1.1.0\",\"max_client_version\":null,\"expires_at\":1700021000},{\"id\":\"0000000000000002\",\"headline\":\"Scheduled maintenance\",\"body\":\"The API is unavailable tonight between 02:00 and 03:00 UTC.\",\"level\":\"warning\",\"cta\":null,\"voucher_campaign_id\":null,\"min_client_version\":null,\"max_client_version\":null,\"expires_at\":null},{\"id\":\"0000000000000003\",\"headline\":\"Launch offer details\",\"body\":\"Terms & conditions apply: the offer runs 10:00 <-> 18:00 at the București café.\",\"level\":\"info\",\"cta\":{\"label\":\"Read the terms\",\"url\":\"https://download.example.test/terms?a=1&b=2\"},\"voucher_campaign_id\":null,\"min_client_version\":null,\"max_client_version\":null,\"expires_at\":null}],\"generation\":12,\"signed_at\":1700000000,\"expires_at\":1700021600,\"server_pubkey_hex\":\"0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0\",\"signature_hex\":\"b9dd8495721f59bce00e2a7603b7012d48ba48db7c8bd71f6d777c55e738da1cd5ed1de0b87a3bdedb723c996786dfcbf6c1be54955aff6a6c261e3de75dae06\"}"
 }
