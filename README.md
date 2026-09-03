@@ -32,6 +32,7 @@ Warren is a VPN by [WarrenBrowse](https://github.com/WarrenBrowse); see
 | `http_v1.json` | client-facing `/v1` HTTP API DTO shapes (`warren_contract::dto`) |
 | `http_fallback_sequence.json` | canonical anti-censorship HTTP fallback attempt sequence |
 | `natpmp.json` | NAT-PMP port forwarding (RFC 6886 frames, the Warren result codes, the rate-limit and credential trailers) |
+| `forum_login_v1.json` | forum wallet login and in-app report against warren-connect: the `X-Warren` signing inputs, the exact signed request bytes, and the provider's answer per outcome |
 
 ## Rules
 

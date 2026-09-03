@@ -74,6 +74,160 @@ def check_fallback_sequence(name: str, data) -> None:
         )
 
 
+FORUM_SID_RE = re.compile(r"^[0-9a-f]{32}$")
+FORUM_HANDLE_RE = re.compile(r"^[a-z]{5}-[a-z]{5}-[a-z]{5}$")
+FORUM_REQUEST_NAMES = {"login", "report_with_log", "report_without_log"}
+
+
+def check_forum_login(name: str, data) -> None:
+    """The forum wire vector must be self-consistent without any crypto:
+    every request's body hash, canonical message and headers must be what
+    the signing rule composes from its own inputs, a report body must be the
+    compact ascending-key serialisation of its fields plus the base64 of the
+    pinned gzip (which must inflate to the pinned text), and every JSON answer
+    must parse. The signature bytes themselves are proven by the consumers
+    (warren-connect verifies each request with its clock set to the vector
+    timestamp)."""
+    import base64
+    import gzip
+    import hashlib
+    import zlib
+
+    if data.get("version") != 1:
+        errors.append(f"{name}: version must be 1")
+        return
+    signer = data.get("signer")
+    if not isinstance(signer, dict):
+        errors.append(f"{name}: signer must be an object")
+        return
+    for key in ("signing_key_hex", "pubkey_hex", "pubkey_ss58", "timestamp", "connect_host"):
+        if key not in signer:
+            errors.append(f"{name}: signer.{key} is missing")
+            return
+    if not str(signer["pubkey_ss58"]).startswith("wb"):
+        errors.append(f"{name}: signer.pubkey_ss58 is not a Warren address")
+    timestamp = signer["timestamp"]
+    if not isinstance(timestamp, int):
+        errors.append(f"{name}: signer.timestamp must be an integer")
+        return
+
+    requests = data.get("requests")
+    if not isinstance(requests, list) or not requests:
+        errors.append(f"{name}: requests must be a non-empty list")
+        return
+    names = [r.get("name") for r in requests]
+    if len(set(names)) != len(names):
+        errors.append(f"{name}: request names must be unique")
+    if set(names) != FORUM_REQUEST_NAMES:
+        errors.append(
+            f"{name}: request names {sorted(map(str, names))} differ from the "
+            f"consumer-handled set {sorted(FORUM_REQUEST_NAMES)} (extend both)"
+        )
+    for r in requests:
+        rname = f"{name}: request {r.get('name')}"
+        body = r.get("body_utf8")
+        if not isinstance(body, str):
+            errors.append(f"{rname}: body_utf8 must be a string")
+            continue
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        if r.get("body_sha256_hex") != digest:
+            errors.append(f"{rname}: body_sha256_hex is not sha256(body_utf8)")
+        nonce = r.get("nonce_hex")
+        if not isinstance(nonce, str) or len(nonce) != 32:
+            errors.append(f"{rname}: nonce_hex must be 16 bytes")
+        if r.get("method") != "POST" or not str(r.get("path", "")).startswith("/v1/forum/"):
+            errors.append(f"{rname}: must be a POST under /v1/forum/")
+        if r.get("url") != f"https://{signer['connect_host']}{r.get('path')}":
+            errors.append(f"{rname}: url is not https://<connect_host><path>")
+        canonical = "\n".join(
+            [str(r.get("method")), str(r.get("path")), str(timestamp), str(nonce), digest]
+        )
+        if r.get("canonical_message") != canonical:
+            errors.append(f"{rname}: canonical_message is not method/path/timestamp/nonce/hash")
+        headers = r.get("headers")
+        if not isinstance(headers, dict):
+            errors.append(f"{rname}: headers must be an object")
+            continue
+        expected_headers = {
+            "Content-Type": "application/json",
+            "X-Warren-PubKey": signer["pubkey_ss58"],
+            "X-Warren-Timestamp": str(timestamp),
+            "X-Warren-Nonce": nonce,
+        }
+        for key, value in expected_headers.items():
+            if headers.get(key) != value:
+                errors.append(f"{rname}: header {key} does not echo the signing inputs")
+        sig = headers.get("X-Warren-Sig")
+        if not isinstance(sig, str) or len(sig) != 128 or not HEX_RE.match(sig):
+            errors.append(f"{rname}: X-Warren-Sig must be 64 bytes of lowercase hex")
+        if "sid" in r:
+            if not FORUM_SID_RE.match(str(r["sid"])):
+                errors.append(f"{rname}: sid must be 32 lowercase hex chars")
+            if body != json.dumps({"sid": r["sid"]}, separators=(",", ":")):
+                errors.append(f"{rname}: body_utf8 is not the compact sid object")
+        if "fields" in r:
+            expected = dict(r["fields"])
+            if "log_gz_hex" in r:
+                gz = bytes.fromhex(r["log_gz_hex"])
+                expected["log_gz_b64"] = base64.b64encode(gz).decode("ascii")
+                try:
+                    inflated = gzip.decompress(gz).decode("utf-8")
+                except (OSError, UnicodeDecodeError, EOFError, zlib.error) as exc:
+                    errors.append(f"{rname}: log_gz_hex does not inflate ({exc})")
+                    inflated = None
+                if inflated is not None and inflated != r.get("log_utf8"):
+                    errors.append(f"{rname}: log_gz_hex does not inflate to log_utf8")
+            compact = json.dumps(expected, separators=(",", ":"), sort_keys=True, ensure_ascii=False)
+            if body != compact:
+                errors.append(
+                    f"{rname}: body_utf8 is not the compact ascending-key serialisation of "
+                    "fields (plus log_gz_b64)"
+                )
+
+    responses = data.get("responses")
+    if not isinstance(responses, dict):
+        errors.append(f"{name}: responses must be an object")
+        return
+    for group, entries in responses.items():
+        if group.startswith("_"):
+            continue
+        if not isinstance(entries, dict):
+            errors.append(f"{name}: responses.{group} must be an object")
+            continue
+        for outcome, answer in entries.items():
+            if outcome.startswith("_"):
+                continue
+            where = f"{name}: responses.{group}.{outcome}"
+            if not isinstance(answer, dict):
+                errors.append(f"{where}: must be an object")
+                continue
+            status = answer.get("status")
+            if not isinstance(status, int) or not 100 <= status <= 599:
+                errors.append(f"{where}: status must be an HTTP status code")
+            content_type = answer.get("content_type")
+            body = answer.get("body_utf8")
+            if not isinstance(content_type, str) or not isinstance(body, str):
+                errors.append(f"{where}: content_type and body_utf8 must be strings")
+                continue
+            if content_type.startswith("application/json"):
+                try:
+                    json.loads(body)
+                except json.JSONDecodeError as exc:
+                    errors.append(f"{where}: JSON body does not parse ({exc})")
+
+    provider = data.get("provider")
+    if not isinstance(provider, dict):
+        errors.append(f"{name}: provider must be an object")
+        return
+    if not FORUM_HANDLE_RE.match(str(provider.get("handle"))):
+        errors.append(f"{name}: provider.handle is not three proquints")
+    external_id = str(provider.get("external_id"))
+    if len(external_id) != 64 or not HEX_RE.match(external_id):
+        errors.append(f"{name}: provider.external_id must be 32 bytes of lowercase hex")
+    if not str(provider.get("forum_public_url", "")).startswith("https://"):
+        errors.append(f"{name}: provider.forum_public_url must be an https origin")
+
+
 def main() -> int:
     vector_files = sorted(ROOT.glob("*.json"))
     if not vector_files:
@@ -91,6 +245,8 @@ def main() -> int:
         check_hex_fields(file.name, data, "$")
         if file.name == "http_fallback_sequence.json":
             check_fallback_sequence(file.name, data)
+        if file.name == "forum_login_v1.json":
+            check_forum_login(file.name, data)
         if f"`{file.name}`" not in readme:
             errors.append(f"README.md: contents table does not list {file.name}")
 

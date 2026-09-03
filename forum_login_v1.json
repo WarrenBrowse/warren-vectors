@@ -1,0 +1,207 @@
+{
+  "_comment": "Forum wallet-login wire contract between warren-connect (the DiscourseConnect broker) and every Warren client, frozen at v1: the X-Warren signing inputs and the exact signed request bytes for a login and for an in-app report, plus the provider's canonical answer per outcome. Synthetic host, key and secret only. The signing rule itself (canonical message, SS58 address) is pinned by identity.json; this file pins what rides on it for the forum routes. Adding a request name here breaks the consumers until they handle it, on purpose.",
+  "version": 1,
+  "signer": {
+    "_comment": "signing_key_hex is the raw 32-byte Ed25519 secret (SigningKey::from_bytes), not a wallet seed: identity.json pins the seed-to-key derivation. timestamp is the X-Warren-Timestamp value; the provider accepts it within 60 seconds of its own clock, so these exact bytes replayed through a live provider land on the clock_skew answer, and their acceptance is proven by verifying with the provider clock set to timestamp. connect_host is not signed (only the path is) and stands in for the deployment's connect host.",
+    "signing_key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+    "pubkey_hex": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+    "pubkey_ss58": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+    "timestamp": 1800000000,
+    "connect_host": "connect.example.test"
+  },
+  "requests": [
+    {
+      "name": "login",
+      "_comment": "Approval of a browser sign-in session: the body is the sid the deep link carried, serialised as exactly these bytes.",
+      "method": "POST",
+      "path": "/v1/forum/login",
+      "url": "https://connect.example.test/v1/forum/login",
+      "nonce_hex": "00000000000000000000000000000001",
+      "sid": "0123456789abcdef0123456789abcdef",
+      "body_utf8": "{\"sid\":\"0123456789abcdef0123456789abcdef\"}",
+      "body_sha256_hex": "9719def2eddbba98c0007c21244dbe80179c1529656df934bb3a82169f5ea27b",
+      "canonical_message": "POST\n/v1/forum/login\n1800000000\n00000000000000000000000000000001\n9719def2eddbba98c0007c21244dbe80179c1529656df934bb3a82169f5ea27b",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Warren-PubKey": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+        "X-Warren-Sig": "b6e706eb7b520451c6598762e03aec26542274decbd98a6fa0677c7b2f04194e795e3a5bd9eb49f9df041446094dd2ac5d0780e48b7b80a16dbafad62d95ee08",
+        "X-Warren-Timestamp": "1800000000",
+        "X-Warren-Nonce": "00000000000000000000000000000001"
+      }
+    },
+    {
+      "name": "report_with_log",
+      "_comment": "In-app bug report with a gzipped redacted problem report. fields is what the app assembled; the body is that object plus log_gz_b64 (standard base64 of log_gz_hex), serialised compact with keys in ascending order, and the signed bytes are the sent bytes. log_gz_hex inflates to log_utf8, whose System information header the provider parses for the public note.",
+      "method": "POST",
+      "path": "/v1/forum/report",
+      "url": "https://connect.example.test/v1/forum/report",
+      "nonce_hex": "00000000000000000000000000000002",
+      "fields": {
+        "app_version": "1.2.3",
+        "area": "connection",
+        "frequency": "sometimes",
+        "locale": "en",
+        "os_version": "Android 15 (API 35)",
+        "platform": "android",
+        "steps": "Open the app\nTap Connect",
+        "what_happened": "Cannot connect after the update, the app stays on Connecting."
+      },
+      "log_utf8": "System information:\nid: 1\nos: Android 15 (API 35)\nwarren-product-version: 1.2.3\n\n====\nLog: app\n====\nhello\n",
+      "log_gz_hex": "1f8b08000000000000ff25cbb10a80201080e1fd9ee2c61a0a2c5a8486c6a021e80924ad84f4e4b4a2b7afe8dffee19bee988c43eb1762a792252fc16a8902284aecbc66b21a45835937f65837395c8ad9f82230e9634ec569387e0a4559953540fb0603ad125508ff6d66df091e32b22cc86a000000",
+      "body_utf8": "{\"app_version\":\"1.2.3\",\"area\":\"connection\",\"frequency\":\"sometimes\",\"locale\":\"en\",\"log_gz_b64\":\"H4sIAAAAAAAA/yXLsQqAIBCA4f2e4sYaCixahIbGoCHoCSSthPTktKK3r+jf/uGb7piMQ+sXYqeSJS/BaokCKErsvGayGkWDWTf2WDc5XIrZ+CIw6WNOxWk4fgpFWZU1QPsGA60SVQj/bWbfCR4ysizIagAAAA==\",\"os_version\":\"Android 15 (API 35)\",\"platform\":\"android\",\"steps\":\"Open the app\\nTap Connect\",\"what_happened\":\"Cannot connect after the update, the app stays on Connecting.\"}",
+      "body_sha256_hex": "1bfa65eee0558e6d4ac12d79c11394da957dd4bb4ae45e8251a8c727164b2470",
+      "canonical_message": "POST\n/v1/forum/report\n1800000000\n00000000000000000000000000000002\n1bfa65eee0558e6d4ac12d79c11394da957dd4bb4ae45e8251a8c727164b2470",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Warren-PubKey": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+        "X-Warren-Sig": "f603a02e62034bad32bb57d2869d9f2e5e7098c63d2023c44b65525b722d6e0fda7fdf80cca77ea1d482f0c91b21bc00c0a0d22ab156141da93a5a2b06466d09",
+        "X-Warren-Timestamp": "1800000000",
+        "X-Warren-Nonce": "00000000000000000000000000000002"
+      }
+    },
+    {
+      "name": "report_without_log",
+      "_comment": "The same report filed without logs: no log_gz_b64 field at all, never an empty one.",
+      "method": "POST",
+      "path": "/v1/forum/report",
+      "url": "https://connect.example.test/v1/forum/report",
+      "nonce_hex": "00000000000000000000000000000003",
+      "fields": {
+        "app_version": "1.2.3",
+        "area": "connection",
+        "frequency": "sometimes",
+        "locale": "en",
+        "os_version": "Android 15 (API 35)",
+        "platform": "android",
+        "steps": "Open the app\nTap Connect",
+        "what_happened": "Cannot connect after the update, the app stays on Connecting."
+      },
+      "body_utf8": "{\"app_version\":\"1.2.3\",\"area\":\"connection\",\"frequency\":\"sometimes\",\"locale\":\"en\",\"os_version\":\"Android 15 (API 35)\",\"platform\":\"android\",\"steps\":\"Open the app\\nTap Connect\",\"what_happened\":\"Cannot connect after the update, the app stays on Connecting.\"}",
+      "body_sha256_hex": "4892731418c8494ba7a9e50b62779b3a9ecf3317c0222059592287ebff74f18e",
+      "canonical_message": "POST\n/v1/forum/report\n1800000000\n00000000000000000000000000000003\n4892731418c8494ba7a9e50b62779b3a9ecf3317c0222059592287ebff74f18e",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Warren-PubKey": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+        "X-Warren-Sig": "e6c50f5213ac5ecd9198945c1b34ff8a0b23cbeba402246a3868ae841130b658f16edb466b57cf45b17f4a44196f9290f3e697f0eb1717771e6a11cc0759ea00",
+        "X-Warren-Timestamp": "1800000000",
+        "X-Warren-Nonce": "00000000000000000000000000000003"
+      }
+    }
+  ],
+  "responses": {
+    "_comment": "Status, Content-Type and exact body bytes the provider answers per outcome. Clients match clock_skew and invalid_report as body tokens and every other refusal by status; the JSON bodies carry their keys in ascending order. The answers naming a handle, a slot or a topic were produced under the provider parameters below; a provider replaying them substitutes its own forum origin in topic_url.",
+    "login": {
+      "_endpoint": "POST /v1/forum/login",
+      "approved": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"handle\":\"jugop-lobab-virar\",\"notify_slot\":1,\"status\":\"approved\"}"
+      },
+      "clock_skew": {
+        "status": 401,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"clock_skew\"}"
+      },
+      "subscription_required": {
+        "status": 403,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "forum access requires a Warren subscription"
+      },
+      "session_unknown": {
+        "status": 404,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "unknown or expired session"
+      }
+    },
+    "session_status": {
+      "_endpoint": "GET /v1/session/{sid}/status",
+      "pending": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"pending\"}"
+      },
+      "approved": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"approved\"}"
+      },
+      "cancelled_clock_skew": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"clock_skew\",\"status\":\"cancelled\"}"
+      },
+      "cancelled_subscription_required": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"subscription_required\",\"status\":\"cancelled\"}"
+      },
+      "unknown": {
+        "status": 404,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "unknown or expired session"
+      }
+    },
+    "report": {
+      "_endpoint": "POST /v1/forum/report",
+      "created": {
+        "status": 201,
+        "content_type": "application/json",
+        "body_utf8": "{\"handle\":\"jugop-lobab-virar\",\"logs\":\"attached\",\"notify_slot\":1,\"status\":\"created\",\"topic_id\":4242,\"topic_url\":\"https://forum.example.test/t/4242\"}"
+      },
+      "created_without_logs": {
+        "status": 201,
+        "content_type": "application/json",
+        "body_utf8": "{\"handle\":\"jugop-lobab-virar\",\"logs\":\"none\",\"notify_slot\":1,\"status\":\"created\",\"topic_id\":4242,\"topic_url\":\"https://forum.example.test/t/4242\"}"
+      },
+      "created_logs_partial": {
+        "status": 201,
+        "content_type": "application/json",
+        "body_utf8": "{\"handle\":\"jugop-lobab-virar\",\"logs\":\"partial\",\"notify_slot\":1,\"status\":\"created\",\"topic_id\":4242,\"topic_url\":\"https://forum.example.test/t/4242\"}"
+      },
+      "clock_skew": {
+        "status": 401,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"clock_skew\"}"
+      },
+      "subscription_required": {
+        "status": 403,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "forum access requires a Warren subscription"
+      },
+      "rate_limited": {
+        "status": 429,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "rate limited"
+      },
+      "invalid_report": {
+        "status": 422,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"invalid_report\"}"
+      },
+      "payload_too_large": {
+        "status": 413,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "payload too large"
+      },
+      "forum_unavailable": {
+        "status": 502,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "forum backend error"
+      },
+      "feature_disabled": {
+        "status": 503,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "feature disabled"
+      }
+    }
+  },
+  "provider": {
+    "_comment": "The synthetic deployment parameters the identity-bearing answers were produced under. handle is HMAC-SHA256(handle_secret, pubkey) rendered as three proquints (the broker's keyed derivation, which a client never computes) and external_id the full tag; notify_slot is the digest slot drawn for this wallet in that run (a live provider draws at random); topic_id is the id the forum minted; forum_public_url is the forum origin of that deployment.",
+    "handle_secret_utf8": "forum-login-v1-synthetic-handle-secret",
+    "handle": "jugop-lobab-virar",
+    "external_id": "5cea7800e6cba2ab7eddd642b5bc80a5e5d8dd3d48d8cb6ab7dcbec4aea74655",
+    "notify_slot": 1,
+    "topic_id": 4242,
+    "forum_public_url": "https://forum.example.test"
+  }
+}
