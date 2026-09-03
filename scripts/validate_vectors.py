@@ -228,6 +228,111 @@ def check_forum_login(name: str, data) -> None:
         errors.append(f"{name}: provider.forum_public_url must be an https origin")
 
 
+ANNOUNCEMENT_LEVELS = {"info", "warning", "error"}
+
+
+def check_announcements(name: str, data) -> None:
+    """The announcements envelope must be self-consistent without any crypto:
+    the pinned preimage must be the compact serialisation of the pinned fields
+    in the frozen order, its digest must match, the published document must be
+    that preimage plus the signature, and every call-to-action must be an https
+    link with no userinfo. The signature bytes themselves are proven by the
+    consumers replaying the file (warren-contract signs the pinned
+    announcements and compares)."""
+    import hashlib
+
+    if data.get("version") != 1:
+        errors.append(f"{name}: version must be 1")
+        return
+    preimage_order = data.get("preimage_field_order")
+    ann_order = data.get("announcement_field_order")
+    if not isinstance(preimage_order, list) or not isinstance(ann_order, list):
+        errors.append(f"{name}: preimage_field_order and announcement_field_order must be lists")
+        return
+
+    raw = data.get("canonical_preimage_utf8")
+    if not isinstance(raw, str):
+        errors.append(f"{name}: canonical_preimage_utf8 must be a string")
+        return
+    try:
+        preimage = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        errors.append(f"{name}: canonical_preimage_utf8 is not valid JSON ({exc})")
+        return
+    if list(preimage.keys()) != preimage_order:
+        errors.append(
+            f"{name}: the preimage key order {list(preimage.keys())} is not the frozen "
+            f"{preimage_order} (a reorder invalidates every deployed client)"
+        )
+    compact = json.dumps(preimage, separators=(",", ":"), ensure_ascii=False)
+    if raw != compact:
+        errors.append(f"{name}: canonical_preimage_utf8 is not the compact serialisation")
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    if data.get("canonical_sha256_hex") != digest:
+        errors.append(f"{name}: canonical_sha256_hex is not sha256(canonical_preimage_utf8)")
+
+    signer = data.get("signer")
+    envelope = data.get("envelope")
+    if not isinstance(signer, dict) or not isinstance(envelope, dict):
+        errors.append(f"{name}: signer and envelope must be objects")
+        return
+    for key in ("signing_key_hex", "server_pubkey_hex"):
+        if len(str(signer.get(key, ""))) != 64:
+            errors.append(f"{name}: signer.{key} must be 32 bytes of lowercase hex")
+    expected_preimage = {
+        "version": data["version"],
+        "announcements": data.get("announcements"),
+        "generation": envelope.get("generation"),
+        "signed_at": envelope.get("signed_at"),
+        "expires_at": envelope.get("expires_at"),
+        "server_pubkey_hex": signer.get("server_pubkey_hex"),
+    }
+    if preimage != expected_preimage:
+        errors.append(f"{name}: canonical_preimage_utf8 does not carry the pinned fields")
+
+    announcements = data.get("announcements")
+    if not isinstance(announcements, list) or not announcements:
+        errors.append(f"{name}: announcements must be a non-empty list")
+        return
+    for i, a in enumerate(announcements):
+        where = f"{name}: announcements[{i}]"
+        if not isinstance(a, dict):
+            errors.append(f"{where}: must be an object")
+            continue
+        if list(a.keys()) != ann_order:
+            errors.append(f"{where}: key order {list(a.keys())} is not the frozen {ann_order}")
+        if a.get("level") not in ANNOUNCEMENT_LEVELS:
+            errors.append(f"{where}: level must be one of {sorted(ANNOUNCEMENT_LEVELS)}")
+        if not isinstance(a.get("voucher_offer"), bool):
+            errors.append(f"{where}: voucher_offer must be a boolean")
+        cta = a.get("cta")
+        if cta is None:
+            continue
+        url = str(cta.get("url", ""))
+        if not url.startswith("https://"):
+            errors.append(f"{where}: cta.url must be an https link")
+            continue
+        authority = re.split(r"[/?#]", url[len("https://"):])[0]
+        if not authority or "@" in authority:
+            errors.append(f"{where}: cta.url must carry a host and no userinfo")
+
+    signed_raw = data.get("signed_json")
+    if not isinstance(signed_raw, str):
+        errors.append(f"{name}: signed_json must be a string")
+        return
+    try:
+        signed = json.loads(signed_raw)
+    except json.JSONDecodeError as exc:
+        errors.append(f"{name}: signed_json is not valid JSON ({exc})")
+        return
+    if list(signed.keys()) != preimage_order + ["signature_hex"]:
+        errors.append(f"{name}: signed_json is not the preimage followed by signature_hex")
+    if signed.get("signature_hex") != data.get("signature_hex"):
+        errors.append(f"{name}: signed_json carries a different signature than signature_hex")
+    if {k: v for k, v in signed.items() if k != "signature_hex"} != preimage:
+        errors.append(f"{name}: signed_json does not carry the signed preimage fields")
+
+
 def main() -> int:
     vector_files = sorted(ROOT.glob("*.json"))
     if not vector_files:
@@ -247,6 +352,8 @@ def main() -> int:
             check_fallback_sequence(file.name, data)
         if file.name == "forum_login_v1.json":
             check_forum_login(file.name, data)
+        if file.name == "announcements_v1.json":
+            check_announcements(file.name, data)
         if f"`{file.name}`" not in readme:
             errors.append(f"README.md: contents table does not list {file.name}")
 
