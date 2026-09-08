@@ -76,7 +76,14 @@ def check_fallback_sequence(name: str, data) -> None:
 
 FORUM_SID_RE = re.compile(r"^[0-9a-f]{32}$")
 FORUM_HANDLE_RE = re.compile(r"^[a-z]{5}-[a-z]{5}-[a-z]{5}$")
-FORUM_REQUEST_NAMES = {"login", "report_with_log", "report_without_log"}
+FORUM_REQUEST_NAMES = {
+    "login",
+    "report_with_log",
+    "report_without_log",
+    "attach_with_log",
+    "attach_pre_topic",
+}
+FORUM_MAX_TOPIC_ID = (1 << 53) - 1
 
 
 def check_forum_login(name: str, data) -> None:
@@ -160,9 +167,35 @@ def check_forum_login(name: str, data) -> None:
         sig = headers.get("X-Warren-Sig")
         if not isinstance(sig, str) or len(sig) != 128 or not HEX_RE.match(sig):
             errors.append(f"{rname}: X-Warren-Sig must be 64 bytes of lowercase hex")
-        if "sid" in r:
-            if not FORUM_SID_RE.match(str(r["sid"])):
-                errors.append(f"{rname}: sid must be 32 lowercase hex chars")
+        if "sid" in r and not FORUM_SID_RE.match(str(r["sid"])):
+            errors.append(f"{rname}: sid must be 32 lowercase hex chars")
+        if "topic_id" in r:
+            # An attach-logs upload: the session id, the topic (0 for a
+            # pre-topic session) and the base64 of the pinned gzip, compact
+            # with ascending keys, like a report body.
+            topic_id = r["topic_id"]
+            if not isinstance(topic_id, int) or not 0 <= topic_id <= FORUM_MAX_TOPIC_ID:
+                errors.append(f"{rname}: topic_id must be an integer within a JavaScript safe integer")
+            if not isinstance(r.get("log_gz_hex"), str):
+                errors.append(f"{rname}: an attach request carries log_gz_hex")
+            else:
+                gz = bytes.fromhex(r["log_gz_hex"])
+                try:
+                    inflated = gzip.decompress(gz).decode("utf-8")
+                except (OSError, UnicodeDecodeError, EOFError, zlib.error) as exc:
+                    errors.append(f"{rname}: log_gz_hex does not inflate ({exc})")
+                    inflated = None
+                if inflated is not None and inflated != r.get("log_utf8"):
+                    errors.append(f"{rname}: log_gz_hex does not inflate to log_utf8")
+                expected = {
+                    "sid": r.get("sid"),
+                    "topic_id": topic_id,
+                    "log_gz_b64": base64.b64encode(gz).decode("ascii"),
+                }
+                compact = json.dumps(expected, separators=(",", ":"), sort_keys=True)
+                if body != compact:
+                    errors.append(f"{rname}: body_utf8 is not the compact ascending-key attach object")
+        elif "sid" in r:
             if body != json.dumps({"sid": r["sid"]}, separators=(",", ":")):
                 errors.append(f"{rname}: body_utf8 is not the compact sid object")
         if "fields" in r:

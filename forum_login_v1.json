@@ -86,6 +86,50 @@
         "X-Warren-Timestamp": "1800000000",
         "X-Warren-Nonce": "00000000000000000000000000000003"
       }
+    },
+    {
+      "name": "attach_with_log",
+      "_comment": "Attach-logs upload for an existing topic (the forum's attach page for topic_id): the body is the session id, the topic and log_gz_b64 (standard base64 of log_gz_hex, the same gzip as report_with_log), serialised compact with keys in ascending order; the signed bytes are the sent bytes. The provider accepts it only when the signer is the topic's author.",
+      "method": "POST",
+      "path": "/v1/forum/attach-logs",
+      "url": "https://connect.example.test/v1/forum/attach-logs",
+      "nonce_hex": "00000000000000000000000000000004",
+      "sid": "0123456789abcdef0123456789abcdef",
+      "topic_id": 4242,
+      "log_utf8": "System information:\nid: 1\nos: Android 15 (API 35)\nwarren-product-version: 1.2.3\n\n====\nLog: app\n====\nhello\n",
+      "log_gz_hex": "1f8b08000000000000ff25cbb10a80201080e1fd9ee2c61a0a2c5a8486c6a021e80924ad84f4e4b4a2b7afe8dffee19bee988c43eb1762a792252fc16a8902284aecbc66b21a45835937f65837395c8ad9f82230e9634ec569387e0a4559953540fb0603ad125508ff6d66df091e32b22cc86a000000",
+      "body_utf8": "{\"log_gz_b64\":\"H4sIAAAAAAAA/yXLsQqAIBCA4f2e4sYaCixahIbGoCHoCSSthPTktKK3r+jf/uGb7piMQ+sXYqeSJS/BaokCKErsvGayGkWDWTf2WDc5XIrZ+CIw6WNOxWk4fgpFWZU1QPsGA60SVQj/bWbfCR4ysizIagAAAA==\",\"sid\":\"0123456789abcdef0123456789abcdef\",\"topic_id\":4242}",
+      "body_sha256_hex": "dabab3ad70266d78e3bb4084689af8573223dd8b84f90c508194384b088b1bf2",
+      "canonical_message": "POST\n/v1/forum/attach-logs\n1800000000\n00000000000000000000000000000004\ndabab3ad70266d78e3bb4084689af8573223dd8b84f90c508194384b088b1bf2",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Warren-PubKey": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+        "X-Warren-Sig": "927c8f987264fbdde60d3f42eff273efa4cdcdd8d1362d8b92b7ec736aa87eb3f5c7d67cd44769711bedbcec1a1ac70898a79f8d048233c5ae6636a10c72f70b",
+        "X-Warren-Timestamp": "1800000000",
+        "X-Warren-Nonce": "00000000000000000000000000000004"
+      }
+    },
+    {
+      "name": "attach_pre_topic",
+      "_comment": "Attach-logs upload for a report still being composed: topic_id 0 marks the pre-topic session, the provider parks the report and binds it to the topic the forum mints afterwards.",
+      "method": "POST",
+      "path": "/v1/forum/attach-logs",
+      "url": "https://connect.example.test/v1/forum/attach-logs",
+      "nonce_hex": "00000000000000000000000000000005",
+      "sid": "0123456789abcdef0123456789abcdef",
+      "topic_id": 0,
+      "log_utf8": "System information:\nid: 1\nos: Android 15 (API 35)\nwarren-product-version: 1.2.3\n\n====\nLog: app\n====\nhello\n",
+      "log_gz_hex": "1f8b08000000000000ff25cbb10a80201080e1fd9ee2c61a0a2c5a8486c6a021e80924ad84f4e4b4a2b7afe8dffee19bee988c43eb1762a792252fc16a8902284aecbc66b21a45835937f65837395c8ad9f82230e9634ec569387e0a4559953540fb0603ad125508ff6d66df091e32b22cc86a000000",
+      "body_utf8": "{\"log_gz_b64\":\"H4sIAAAAAAAA/yXLsQqAIBCA4f2e4sYaCixahIbGoCHoCSSthPTktKK3r+jf/uGb7piMQ+sXYqeSJS/BaokCKErsvGayGkWDWTf2WDc5XIrZ+CIw6WNOxWk4fgpFWZU1QPsGA60SVQj/bWbfCR4ysizIagAAAA==\",\"sid\":\"0123456789abcdef0123456789abcdef\",\"topic_id\":0}",
+      "body_sha256_hex": "3437009968455a0f2c33615977b1cbb3f4d523dc8fc5afe663ad093eaea88584",
+      "canonical_message": "POST\n/v1/forum/attach-logs\n1800000000\n00000000000000000000000000000005\n3437009968455a0f2c33615977b1cbb3f4d523dc8fc5afe663ad093eaea88584",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Warren-PubKey": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+        "X-Warren-Sig": "c9ad7eb70ddd8584ab17f7364084c5811e51313bc5ce0518bef6b4dbd3601f403872b6a51038c121468a7963154920204a16acd5114051b7773ea93fd2c7a20b",
+        "X-Warren-Timestamp": "1800000000",
+        "X-Warren-Nonce": "00000000000000000000000000000005"
+      }
     }
   ],
   "responses": {
@@ -192,6 +236,105 @@
         "status": 503,
         "content_type": "text/plain; charset=utf-8",
         "body_utf8": "feature disabled"
+      }
+    },
+    "attach": {
+      "_comment": "Answers of POST /v1/forum/attach-logs. attached is the topic-bound success, received the pre-topic one (the report is parked until the forum binds it); not_author is the one refusal with a JSON token, every other refusal is matched by status.",
+      "attached": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"attached\"}"
+      },
+      "received": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"received\"}"
+      },
+      "not_author": {
+        "status": 403,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"not_author\"}"
+      },
+      "session_unknown": {
+        "status": 404,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "unknown or expired session"
+      },
+      "payload_too_large": {
+        "status": 413,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "payload too large"
+      },
+      "clock_skew": {
+        "status": 401,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"clock_skew\"}"
+      },
+      "forum_unavailable": {
+        "status": 502,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "forum backend error"
+      },
+      "feature_disabled": {
+        "status": 503,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "feature disabled"
+      }
+    },
+    "attach_status": {
+      "_comment": "Answers of GET /v1/attach/<sid>/status, the unsigned poll of the forum page. A client placing a typed session id offers the attach consent only on pending; received, done and cancelled are spent.",
+      "pending": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"pending\"}"
+      },
+      "processing": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"processing\"}"
+      },
+      "received": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"received\"}"
+      },
+      "done": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"done\"}"
+      },
+      "cancelled_user": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"user_cancelled\",\"status\":\"cancelled\"}"
+      },
+      "unknown": {
+        "status": 404,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "unknown or expired session"
+      }
+    },
+    "attach_meta": {
+      "_comment": "Answers of GET /v1/attach/<sid>/meta. topic_id names the topic a live session is bound to and is null for a pre-topic session: what a phone that typed the session id by hand cannot know otherwise. version and os appear once the app delivered the report.",
+      "pending_topic": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"pending\",\"topic_id\":4242}"
+      },
+      "pending_pre_topic": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"pending\",\"topic_id\":null}"
+      },
+      "received_pre_topic": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"os\":\"Android 15 (API 35)\",\"status\":\"received\",\"topic_id\":null,\"version\":\"1.2.3\"}"
+      },
+      "unknown": {
+        "status": 404,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "unknown or expired session"
       }
     }
   },
