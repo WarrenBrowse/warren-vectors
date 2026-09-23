@@ -221,6 +221,24 @@ def check_forum_login(name: str, data) -> None:
     if not isinstance(responses, dict):
         errors.append(f"{name}: responses must be an object")
         return
+    check_forum_answers(name, responses)
+
+    provider = data.get("provider")
+    if not isinstance(provider, dict):
+        errors.append(f"{name}: provider must be an object")
+        return
+    if not FORUM_HANDLE_RE.match(str(provider.get("handle"))):
+        errors.append(f"{name}: provider.handle is not three proquints")
+    external_id = str(provider.get("external_id"))
+    if len(external_id) != 64 or not HEX_RE.match(external_id):
+        errors.append(f"{name}: provider.external_id must be 32 bytes of lowercase hex")
+    if not str(provider.get("forum_public_url", "")).startswith("https://"):
+        errors.append(f"{name}: provider.forum_public_url must be an https origin")
+
+
+def check_forum_answers(name: str, responses) -> None:
+    """Every answer carries an HTTP status, a content type and a body, and a
+    JSON body parses."""
     for group, entries in responses.items():
         if group.startswith("_"):
             continue
@@ -248,17 +266,129 @@ def check_forum_login(name: str, data) -> None:
                 except json.JSONDecodeError as exc:
                     errors.append(f"{where}: JSON body does not parse ({exc})")
 
-    provider = data.get("provider")
-    if not isinstance(provider, dict):
-        errors.append(f"{name}: provider must be an object")
+
+FORUM_V2_REQUEST_NAMES = {"login_bound"}
+FORUM_V2_STATUSES = ["pending", "awaiting_code", "approved", "completed", "cancelled"]
+FORUM_V2_CANCEL_REASONS = [
+    "user_cancelled",
+    "subscription_required",
+    "clock_skew",
+    "app_update_required",
+    "code_attempts_exhausted",
+]
+FORUM_CODE_RE = re.compile(r"^[0-9]{6}$")
+FORUM_COOKIE_RE = re.compile(r"^[0-9a-f]{64}$")
+
+
+def check_forum_login_v2(name: str, data) -> None:
+    """The bound-login vector must be self-consistent without any crypto: the
+    approval body is the compact ascending-key object of the version and the
+    sid, its hash, canonical message and headers are composed from the signing
+    inputs, the cookie and the handoff URL follow their frozen shapes, and the
+    approved answers carry the pinned code and, on the same-device answer
+    only, the pinned handoff URL. The signature bytes and every answer are
+    proven by warren-connect replaying the file through its router."""
+    import hashlib
+
+    if data.get("version") != 2:
+        errors.append(f"{name}: version must be 2")
         return
+    signer = data.get("signer")
+    provider = data.get("provider")
+    if not isinstance(signer, dict) or not isinstance(provider, dict):
+        errors.append(f"{name}: signer and provider must be objects")
+        return
+    timestamp = signer.get("timestamp")
+    host = signer.get("connect_host")
+    if not isinstance(timestamp, int) or not isinstance(host, str):
+        errors.append(f"{name}: signer.timestamp and signer.connect_host are required")
+        return
+    if not str(signer.get("pubkey_ss58")).startswith("wb"):
+        errors.append(f"{name}: signer.pubkey_ss58 is not a Warren address")
+    code = str(provider.get("completion_code"))
+    if not FORUM_CODE_RE.match(code):
+        errors.append(f"{name}: provider.completion_code must be six digits")
+    if not FORUM_SID_RE.match(str(provider.get("qr_sid"))):
+        errors.append(f"{name}: provider.qr_sid must be 32 lowercase hex chars")
     if not FORUM_HANDLE_RE.match(str(provider.get("handle"))):
         errors.append(f"{name}: provider.handle is not three proquints")
-    external_id = str(provider.get("external_id"))
-    if len(external_id) != 64 or not HEX_RE.match(external_id):
-        errors.append(f"{name}: provider.external_id must be 32 bytes of lowercase hex")
     if not str(provider.get("forum_public_url", "")).startswith("https://"):
         errors.append(f"{name}: provider.forum_public_url must be an https origin")
+
+    requests = data.get("requests")
+    if not isinstance(requests, list) or {r.get("name") for r in requests} != FORUM_V2_REQUEST_NAMES:
+        errors.append(f"{name}: requests must be exactly {sorted(FORUM_V2_REQUEST_NAMES)}")
+        return
+    sid = None
+    for r in requests:
+        rname = f"{name}: request {r.get('name')}"
+        sid = str(r.get("sid"))
+        if not FORUM_SID_RE.match(sid):
+            errors.append(f"{rname}: sid must be 32 lowercase hex chars")
+        body = str(r.get("body_utf8"))
+        if body != json.dumps({"login_version": 2, "sid": sid}, separators=(",", ":"), sort_keys=True):
+            errors.append(f"{rname}: body_utf8 is not the compact ascending-key version and sid")
+        digest = hashlib.sha256(body.encode("utf-8")).hexdigest()
+        if r.get("body_sha256_hex") != digest:
+            errors.append(f"{rname}: body_sha256_hex is not sha256(body_utf8)")
+        nonce = str(r.get("nonce_hex"))
+        canonical = "\n".join(["POST", "/v1/forum/login", str(timestamp), nonce, digest])
+        if r.get("method") != "POST" or r.get("path") != "/v1/forum/login":
+            errors.append(f"{rname}: must be POST /v1/forum/login")
+        if r.get("canonical_message") != canonical:
+            errors.append(f"{rname}: canonical_message is not method/path/timestamp/nonce/hash")
+        if r.get("url") != f"https://{host}/v1/forum/login":
+            errors.append(f"{rname}: url is not https://<connect_host><path>")
+        headers = r.get("headers") or {}
+        expected_headers = {
+            "Content-Type": "application/json",
+            "X-Warren-PubKey": signer.get("pubkey_ss58"),
+            "X-Warren-Timestamp": str(timestamp),
+            "X-Warren-Nonce": nonce,
+        }
+        for key, value in expected_headers.items():
+            if headers.get(key) != value:
+                errors.append(f"{rname}: header {key} does not echo the signing inputs")
+        sig = headers.get("X-Warren-Sig")
+        if not isinstance(sig, str) or len(sig) != 128 or not HEX_RE.match(sig):
+            errors.append(f"{rname}: X-Warren-Sig must be 64 bytes of lowercase hex")
+
+    cookie = data.get("cookie") or {}
+    value = str(cookie.get("example_value"))
+    if cookie.get("name") != "__Host-warren_login" or not FORUM_COOKIE_RE.match(value):
+        errors.append(f"{name}: cookie must be __Host-warren_login with a 64-hex value")
+    if cookie.get("example_set_cookie") != (
+        f"__Host-warren_login={value}; Max-Age=300; Path=/; Secure; HttpOnly; SameSite=Lax"
+    ):
+        errors.append(f"{name}: cookie.example_set_cookie is not the frozen attribute set")
+
+    handoff = data.get("handoff") or {}
+    expected_handoff = f"https://{host}/handoff#sid={sid}&code={code}"
+    if handoff.get("path") != "/handoff" or handoff.get("example") != expected_handoff:
+        errors.append(f"{name}: handoff.example is not https://<connect_host>/handoff#sid=<sid>&code=<code>")
+
+    states = data.get("states") or {}
+    if states.get("status") != FORUM_V2_STATUSES or states.get("cancel_reasons") != FORUM_V2_CANCEL_REASONS:
+        errors.append(f"{name}: states must list the frozen statuses and cancel reasons")
+
+    responses = data.get("responses")
+    if not isinstance(responses, dict):
+        errors.append(f"{name}: responses must be an object")
+        return
+    check_forum_answers(name, responses)
+    login = responses.get("login") or {}
+    for outcome, handoff_expected in (("approved_same_device", True), ("approved_cross_device", False)):
+        try:
+            body = json.loads(login.get(outcome, {}).get("body_utf8", ""))
+        except json.JSONDecodeError:
+            continue
+        completion = body.get("completion") or {}
+        if completion.get("code") != code:
+            errors.append(f"{name}: responses.login.{outcome} does not carry the pinned code")
+        if handoff_expected and completion.get("handoff_url") != expected_handoff:
+            errors.append(f"{name}: responses.login.{outcome} does not carry the pinned handoff URL")
+        if not handoff_expected and "handoff_url" in completion:
+            errors.append(f"{name}: a cross-device completion carries no handoff URL")
 
 
 ANNOUNCEMENT_LEVELS = {"info", "warning", "error"}
@@ -401,6 +531,8 @@ def main() -> int:
             check_fallback_sequence(file.name, data)
         if file.name == "forum_login_v1.json":
             check_forum_login(file.name, data)
+        if file.name == "forum_login_v2.json":
+            check_forum_login_v2(file.name, data)
         if file.name == "announcements_v1.json":
             check_announcements(file.name, data)
         if f"`{file.name}`" not in readme:

@@ -1,0 +1,252 @@
+{
+  "_comment": "Forum wallet-login v2, the bound approval, between warren-connect and every Warren client. A login completes only in the browser that opened it (the __Host-warren_login cookie set by /sso) AND with the one-time code returned to the wallet that signed the approval. v2 changes the approval request (an explicit login_version in the signed body), its answer (a completion object) and the browser half (the cookie, the confirm step, the handoff page). forum_login_v1.json keeps pinning the report and attach-logs wire, which v2 does not change, and the approval form that predates the code. Synthetic host, key, cookie and secret only. Adding a request or an answer name breaks the consumers until they handle it, on purpose.",
+  "version": 2,
+  "signer": {
+    "_comment": "The v1 signer: signing_key_hex is the raw 32-byte Ed25519 secret, timestamp the X-Warren-Timestamp value (outside any live provider's 60 s window, so these exact bytes replay onto clock_skew and their acceptance is proven with the provider clock at timestamp). connect_host stands in for the deployment's connect host.",
+    "signing_key_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+    "pubkey_hex": "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+    "pubkey_ss58": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+    "timestamp": 1800000000,
+    "connect_host": "connect.example.test"
+  },
+  "requests": [
+    {
+      "name": "login_bound",
+      "_comment": "A bound approval of the sign-in session named by the deep link, the QR or a typed sign-in code: the sid it carried plus login_version 2, compact, keys in ascending order. The same bytes whichever of the session's two ids the sid is; the provider tells them apart.",
+      "method": "POST",
+      "path": "/v1/forum/login",
+      "url": "https://connect.example.test/v1/forum/login",
+      "nonce_hex": "00000000000000000000000000000002",
+      "sid": "0123456789abcdef0123456789abcdef",
+      "body_utf8": "{\"login_version\":2,\"sid\":\"0123456789abcdef0123456789abcdef\"}",
+      "body_sha256_hex": "98ada2a884612d909e296cdbac782021c860e2dc4c1a31198244c937fc08fbc0",
+      "canonical_message": "POST\n/v1/forum/login\n1800000000\n00000000000000000000000000000002\n98ada2a884612d909e296cdbac782021c860e2dc4c1a31198244c937fc08fbc0",
+      "headers": {
+        "Content-Type": "application/json",
+        "X-Warren-PubKey": "wbCTo7no13eynB3yV6tZadBhFxd5h1gyqTic8ksbWbtXw45gX",
+        "X-Warren-Sig": "ce76a54ef6c4502f1d9219137cb179d2609fe3559dfa6121141caef0528639a19804e15c26d3780e208c47b89b0451635c0d85bf74802c22b39197045c7f850d",
+        "X-Warren-Timestamp": "1800000000",
+        "X-Warren-Nonce": "00000000000000000000000000000002"
+      }
+    }
+  ],
+  "cookie": {
+    "_comment": "Set by GET /sso on the approval page, reused when the browser already holds a well-formed one (a refresh and a second tab stay bound). HttpOnly: no script reads it, the page's own included. Only the provider's own pages send it; an app never holds it.",
+    "name": "__Host-warren_login",
+    "value_pattern": "^[0-9a-f]{64}$",
+    "example_value": "a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "example_set_cookie": "__Host-warren_login=a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4; Max-Age=300; Path=/; Secure; HttpOnly; SameSite=Lax"
+  },
+  "handoff": {
+    "_comment": "The URL a same-device approval returns in completion.handoff_url, for the approving app to open in its own default browser. The sid (the same-device id) and the code ride in the fragment only, which no browser sends to a server. The page posts the confirm with its cookie and completes, or tells a browser that did not open the login that it did not.",
+    "path": "/handoff",
+    "url_template": "https://{connect_host}/handoff#sid={sid}&code={code}",
+    "example": "https://connect.example.test/handoff#sid=0123456789abcdef0123456789abcdef&code=042917"
+  },
+  "states": {
+    "_comment": "Values of status in the browser's state document, and of reason when status is cancelled.",
+    "status": [
+      "pending",
+      "awaiting_code",
+      "approved",
+      "completed",
+      "cancelled"
+    ],
+    "cancel_reasons": [
+      "user_cancelled",
+      "subscription_required",
+      "clock_skew",
+      "app_update_required",
+      "code_attempts_exhausted"
+    ]
+  },
+  "responses": {
+    "_comment": "Status, Content-Type and exact body bytes per outcome, JSON keys in ascending order. The approved answers were produced under the provider parameters below with the provider's code draw fixed to provider.completion_code; a live provider draws the code at random, so a replay substitutes the code it received, and its own sid and connect host in handoff_url.",
+    "login": {
+      "_endpoint": "POST /v1/forum/login",
+      "approved_same_device": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"completion\":{\"code\":\"042917\",\"handoff_url\":\"https://connect.example.test/handoff#sid=0123456789abcdef0123456789abcdef&code=042917\"},\"handle\":\"konid-vodub-lonap\",\"notify_slot\":1,\"status\":\"approved\"}"
+      },
+      "approved_cross_device": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"completion\":{\"code\":\"042917\"},\"handle\":\"konid-vodub-lonap\",\"notify_slot\":1,\"status\":\"approved\"}"
+      },
+      "app_update_required": {
+        "status": 400,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"app_update_required\"}",
+        "_comment": "An approval without login_version (the v1 form) refused: always for staff, and for everyone unless the deployment allows the legacy form. The browser's session is cancelled with reason app_update_required."
+      },
+      "login_version_unsupported": {
+        "status": 400,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "malformed payload"
+      },
+      "clock_skew": {
+        "status": 401,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"clock_skew\"}"
+      },
+      "subscription_required": {
+        "status": 403,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "forum access requires a Warren subscription"
+      },
+      "session_unknown": {
+        "status": 404,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "unknown or expired session",
+        "_comment": "Unknown, expired, cancelled, or no longer waiting for an approval: a second approval never replaces the first."
+      }
+    },
+    "session_status_app": {
+      "_endpoint": "GET /v1/session/{sid}/status without the login cookie (the app's read before it signs; its Date header is the trusted clock). Either id.",
+      "pending": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"pending\"}"
+      },
+      "gone": {
+        "status": 404,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "unknown or expired session"
+      }
+    },
+    "session_status": {
+      "_endpoint": "GET /v1/session/{sid}/status with the login cookie (the approval page's poll). Same-device id only.",
+      "pending": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"pending\"}"
+      },
+      "awaiting_code": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"awaiting_code\"}"
+      },
+      "approved": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"approved\"}"
+      },
+      "completed": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"completed\"}"
+      },
+      "cancelled_user_cancelled": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"user_cancelled\",\"status\":\"cancelled\"}"
+      },
+      "cancelled_clock_skew": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"clock_skew\",\"status\":\"cancelled\"}"
+      },
+      "cancelled_subscription_required": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"subscription_required\",\"status\":\"cancelled\"}"
+      },
+      "cancelled_app_update_required": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"app_update_required\",\"status\":\"cancelled\"}"
+      },
+      "cancelled_code_attempts_exhausted": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"code_attempts_exhausted\",\"status\":\"cancelled\"}"
+      },
+      "browser_mismatch": {
+        "status": 403,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"browser_mismatch\"}",
+        "_comment": "A cookie that is not the session's, or a sid naming no live session: the same answer."
+      }
+    },
+    "confirm": {
+      "_endpoint": "POST /v1/session/{sid}/confirm with the login cookie and Content-Type application/json. Same-device id only. Five wrong codes cancel the login.",
+      "_request_body_utf8": "{\"code\":\"042917\"}",
+      "confirmed": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"approved\"}"
+      },
+      "code_invalid": {
+        "status": 422,
+        "content_type": "application/json",
+        "body_utf8": "{\"attempts_left\":4,\"error\":\"code_invalid\"}"
+      },
+      "attempts_exhausted": {
+        "status": 409,
+        "content_type": "application/json",
+        "body_utf8": "{\"reason\":\"code_attempts_exhausted\",\"status\":\"cancelled\"}"
+      },
+      "not_awaiting_code": {
+        "status": 409,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"pending\"}",
+        "_comment": "The session's state document, here before the approval."
+      },
+      "browser_mismatch": {
+        "status": 403,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"browser_mismatch\"}"
+      },
+      "not_json": {
+        "status": 400,
+        "content_type": "text/plain; charset=utf-8",
+        "body_utf8": "malformed payload"
+      }
+    },
+    "complete": {
+      "_endpoint": "GET /v1/session/{sid}/complete with the login cookie, a top-level navigation. Same-device id only.",
+      "login": {
+        "status": 303,
+        "content_type": "",
+        "body_utf8": "",
+        "location_prefix": "https://forum.example.test/session/sso_login?sso="
+      },
+      "already_completed": {
+        "status": 303,
+        "content_type": "",
+        "body_utf8": "",
+        "location": "https://forum.example.test/",
+        "_comment": "Another tab of the same browser completed first."
+      },
+      "not_ready": {
+        "status": 409,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"awaiting_code\"}"
+      },
+      "browser_mismatch": {
+        "status": 403,
+        "content_type": "application/json",
+        "body_utf8": "{\"error\":\"browser_mismatch\"}"
+      }
+    },
+    "cancel": {
+      "_endpoint": "POST /v1/session/{sid}/cancel, no cookie, no body: the app's decline. Either id; ends only a login still waiting for its approval, and answers the same for any id.",
+      "cancelled": {
+        "status": 200,
+        "content_type": "application/json",
+        "body_utf8": "{\"status\":\"cancelled\"}"
+      }
+    }
+  },
+  "provider": {
+    "_comment": "The synthetic deployment parameters the identity-bearing answers were produced under: handle and external_id are the keyed derivation over the signer key under handle_secret_utf8, notify_slot the slot drawn in that run, completion_code the code the provider's draw was fixed to, qr_sid the session's cross-device id, forum_public_url the forum origin (return_sso_url lives under it).",
+    "handle_secret_utf8": "forum-login-v2-synthetic-handle-secret",
+    "handle": "konid-vodub-lonap",
+    "external_id": "6a51e8707a4a075da11df6f774466a3f35ca16d83a460018d591f7d060b8a905",
+    "notify_slot": 1,
+    "completion_code": "042917",
+    "qr_sid": "fedcba9876543210fedcba9876543210",
+    "forum_public_url": "https://forum.example.test"
+  }
+}
