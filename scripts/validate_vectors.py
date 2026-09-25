@@ -512,6 +512,75 @@ def check_announcements(name: str, data) -> None:
         errors.append(f"{name}: signed_json does not carry the signed preimage fields")
 
 
+PF_ATTRIBUTION_TAG_ERRORS = {"bad_signature", "unsupported_version", "wrong_length"}
+PF_ATTRIBUTION_ENVELOPE_ERRORS = {"unsupported_version", "unsupported_tag_version", "wrong_length"}
+
+
+def check_pf_attribution(name: str, data) -> None:
+    """The attribution vector must be self-consistent without any crypto: the
+    tag is the concatenation of its pinned fields, the signing preimage and the
+    AEAD aad are the domain-separated layouts of doc 105, the envelope is its
+    version, the token and the tag, and every negative case names an outcome
+    from the closed set the consumers match on. The signature and the
+    ciphertext themselves are proven by warren-contract replaying the file."""
+    if data.get("version") != 1:
+        errors.append(f"{name}: version must be 1")
+        return
+    domain = str(data.get("domain_utf8", "")).encode("utf-8")
+    tag = data.get("tag")
+    envelope = data.get("envelope")
+    if not isinstance(tag, dict) or not isinstance(envelope, dict):
+        errors.append(f"{name}: tag and envelope must be objects")
+        return
+    try:
+        version = tag["version"]
+        epoch = tag["epoch"].to_bytes(8, "big")
+        nonce = bytes.fromhex(tag["nonce_hex"])
+        ciphertext = bytes.fromhex(tag["ciphertext_hex"])
+        signature = bytes.fromhex(tag["signature_hex"])
+        tag_bytes = bytes.fromhex(tag["tag_hex"])
+        token = bytes.fromhex(envelope["token_hex"])
+        envelope_bytes = bytes.fromhex(envelope["envelope_hex"])
+    except (KeyError, TypeError, ValueError, AttributeError, OverflowError) as exc:
+        errors.append(f"{name}: tag or envelope field missing or malformed ({exc!r})")
+        return
+    for field, value, expected in (
+        ("nonce", nonce, 24),
+        ("ciphertext", ciphertext, 48),
+        ("signature", signature, 64),
+        ("account_pubkey", bytes.fromhex(str(tag.get("account_pubkey_hex", ""))), 32),
+        ("tag", tag_bytes, data.get("tag_len")),
+        ("token", token, data.get("token_len")),
+        ("envelope", envelope_bytes, data.get("envelope_len")),
+    ):
+        if len(value) != expected:
+            errors.append(f"{name}: {field} is {len(value)} bytes, expected {expected}")
+    header = domain + bytes([version]) + epoch
+    if tag.get("aad_hex") != header.hex():
+        errors.append(f"{name}: aad_hex is not domain || version || epoch BE")
+    if tag.get("signing_preimage_hex") != (header + nonce + ciphertext).hex():
+        errors.append(f"{name}: signing_preimage_hex is not domain || version || epoch || nonce || ciphertext")
+    if tag_bytes != bytes([version]) + epoch + nonce + ciphertext + signature:
+        errors.append(f"{name}: tag_hex is not version || epoch || nonce || ciphertext || signature")
+    if envelope_bytes != bytes([envelope.get("version", -1) & 0xFF]) + token + tag_bytes:
+        errors.append(f"{name}: envelope_hex is not version || token || tag")
+
+    for key, allowed in (
+        ("invalid_tags", PF_ATTRIBUTION_TAG_ERRORS),
+        ("invalid_envelopes", PF_ATTRIBUTION_ENVELOPE_ERRORS),
+    ):
+        cases = data.get(key)
+        if not isinstance(cases, list) or not cases:
+            errors.append(f"{name}: {key} must be a non-empty list")
+            continue
+        names = [c.get("name") for c in cases if isinstance(c, dict)]
+        if len(names) != len(cases) or len(set(names)) != len(names):
+            errors.append(f"{name}: {key} entries must be objects with unique names")
+        for case in cases:
+            if isinstance(case, dict) and case.get("expect") not in allowed:
+                errors.append(f"{name}: {key}.{case.get('name')} expects {case.get('expect')!r}, not one of {sorted(allowed)}")
+
+
 def main() -> int:
     vector_files = sorted(ROOT.glob("*.json"))
     if not vector_files:
@@ -535,6 +604,8 @@ def main() -> int:
             check_forum_login_v2(file.name, data)
         if file.name == "announcements_v1.json":
             check_announcements(file.name, data)
+        if file.name == "pf_attribution.json":
+            check_pf_attribution(file.name, data)
         if f"`{file.name}`" not in readme:
             errors.append(f"README.md: contents table does not list {file.name}")
 
