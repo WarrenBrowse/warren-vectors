@@ -581,6 +581,154 @@ def check_pf_attribution(name: str, data) -> None:
                 errors.append(f"{name}: {key}.{case.get('name')} expects {case.get('expect')!r}, not one of {sorted(allowed)}")
 
 
+TOKEN_BLINDING_SALT = b"warren/token-blinding/v1"
+TOKEN_BLINDING_PURPOSES = {"browser-proxy/v1", "session/v1"}
+
+
+def _hkdf_sha256(ikm: bytes, salt: bytes, info: bytes, length: int) -> bytes:
+    import hashlib
+    import hmac
+
+    prk = hmac.new(salt, ikm, hashlib.sha256).digest()
+    out, block = b"", b""
+    counter = 1
+    while len(out) < length:
+        block = hmac.new(prk, block + info + bytes([counter]), hashlib.sha256).digest()
+        out += block
+        counter += 1
+    return out[:length]
+
+
+def _emsa_pss_encode_sha384(message: bytes, salt: bytes, em_bits: int) -> bytes:
+    import hashlib
+
+    em_len = (em_bits + 7) // 8
+    m_hash = hashlib.sha384(message).digest()
+    h = hashlib.sha384(b"\x00" * 8 + m_hash + salt).digest()
+    db = b"\x00" * (em_len - len(salt) - len(h) - 2) + b"\x01" + salt
+    mask, counter = b"", 0
+    while len(mask) < len(db):
+        mask += hashlib.sha384(h + counter.to_bytes(4, "big")).digest()
+        counter += 1
+    masked = bytearray(a ^ b for a, b in zip(db, mask))
+    masked[0] &= 0xFF >> (8 * em_len - em_bits)
+    return bytes(masked) + h + b"\xbc"
+
+
+def check_token_blinding(name: str, data) -> None:
+    """The wallet-derived blinding vector is recomputed here from its own
+    inputs, independently of both the TypeScript reference that produced it
+    and the Rust port that replays it: the blinding keys and every slot's
+    draws (HKDF-SHA256), the blinding factor (first modulus-wide draw reduced
+    mod n, retried while not a unit above 1), the RSABSSA blinded message, the
+    issuer's blind signature under the public key, and the finalized token."""
+    import hashlib
+    import math
+
+    if data.get("version") != 1:
+        errors.append(f"{name}: version must be 1")
+        return
+    if data.get("salt_utf8") != TOKEN_BLINDING_SALT.decode():
+        errors.append(f"{name}: salt_utf8 must be {TOKEN_BLINDING_SALT.decode()!r}")
+        return
+    try:
+        seed = bytes.fromhex(data["wallet"]["seed_hex"])
+        issuer = data["issuer"]
+        spki = bytes.fromhex(issuer["spki_hex"])
+        n = int(issuer["modulus_hex"], 16)
+        e = int(issuer["public_exponent_hex"], 16)
+        key_id = bytes.fromhex(issuer["token_key_id_hex"])
+        keys = {k["purpose"]: bytes.fromhex(k["key_hex"]) for k in data["blinding_keys"]}
+        batches = data["batches"]
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        errors.append(f"{name}: wallet, issuer or keys field missing or malformed ({exc!r})")
+        return
+    if len(seed) != 32:
+        errors.append(f"{name}: wallet.seed_hex must be 32 bytes")
+    if set(keys) != TOKEN_BLINDING_PURPOSES:
+        errors.append(f"{name}: blinding_keys must cover exactly {sorted(TOKEN_BLINDING_PURPOSES)}")
+    for purpose, key in keys.items():
+        if key != _hkdf_sha256(seed, TOKEN_BLINDING_SALT, purpose.encode(), 32):
+            errors.append(f"{name}: blinding key for {purpose} is not HKDF(seed, salt, purpose)")
+    if hashlib.sha256(spki).digest() != key_id:
+        errors.append(f"{name}: issuer.token_key_id_hex is not sha256(spki)")
+    if bytes.fromhex(issuer["modulus_hex"]) not in spki or n.bit_length() != 2048:
+        errors.append(f"{name}: issuer.modulus_hex is not the 2048-bit modulus inside the spki")
+    label = str(issuer.get("context_label", "")).encode()
+    issuer_name = str(issuer.get("name", "")).encode()
+    quota = issuer.get("quota_per_epoch")
+    if not isinstance(batches, list) or not batches:
+        errors.append(f"{name}: batches must be a non-empty list")
+        return
+    if {b.get("purpose") for b in batches} != TOKEN_BLINDING_PURPOSES:
+        errors.append(f"{name}: batches must cover every purpose")
+    for batch in batches:
+        where = f"{name}: batch {batch.get('purpose')}@{batch.get('epoch')}"
+        key = keys.get(batch.get("purpose"))
+        epoch = batch.get("epoch")
+        slots = batch.get("slots")
+        if key is None or not isinstance(epoch, int) or not isinstance(slots, list):
+            errors.append(f"{where}: unknown purpose, or epoch or slots malformed")
+            continue
+        context = hashlib.sha256(label + epoch.to_bytes(8, "big")).digest()
+        challenge = (
+            (2).to_bytes(2, "big")
+            + len(issuer_name).to_bytes(2, "big")
+            + issuer_name
+            + bytes([len(context)])
+            + context
+            + (0).to_bytes(2, "big")
+        )
+        digest = hashlib.sha256(challenge).digest()
+        if batch.get("challenge_digest_hex") != digest.hex():
+            errors.append(f"{where}: challenge_digest_hex is not the epoch challenge digest")
+        if [s.get("index") for s in slots] != list(range(quota)):
+            errors.append(f"{where}: slots must be indices 0..quota in order")
+        for slot in slots:
+            swhere = f"{where} slot {slot.get('index')}"
+            try:
+                index = slot["index"]
+                got = {k: bytes.fromhex(v) for k, v in slot.items() if k.endswith("_hex")}
+            except (KeyError, TypeError, ValueError, AttributeError) as exc:
+                errors.append(f"{swhere}: malformed ({exc!r})")
+                continue
+            block = 0
+
+            def draw(length: int) -> bytes:
+                nonlocal block
+                out = b""
+                while len(out) < length:
+                    info = epoch.to_bytes(8, "big") + index.to_bytes(4, "big") + block.to_bytes(4, "big")
+                    out += _hkdf_sha256(key, TOKEN_BLINDING_SALT, info, 32)
+                    block += 1
+                return out[:length]
+
+            nonce, salt = draw(32), draw(48)
+            if got.get("nonce_hex") != nonce or got.get("salt_hex") != salt:
+                errors.append(f"{swhere}: nonce or salt is not the slot's first two draws")
+                continue
+            first = draw(256)
+            r = int.from_bytes(first, "big") % n
+            while r <= 1 or math.gcd(r, n) != 1:
+                r = int.from_bytes(draw(256), "big") % n
+            if got.get("blinding_draw_hex") != first or got.get("blinding_factor_hex") != r.to_bytes(256, "big"):
+                errors.append(f"{swhere}: blinding factor is not the third draw reduced mod n")
+                continue
+            token_input = (2).to_bytes(2, "big") + nonce + digest + key_id
+            if got.get("token_input_hex") != token_input:
+                errors.append(f"{swhere}: token_input_hex is not 0x0002 || nonce || digest || key id")
+            m = int.from_bytes(_emsa_pss_encode_sha384(token_input, salt, 2047), "big")
+            blinded = (m * pow(r, e, n)) % n
+            if got.get("blinded_hex") != blinded.to_bytes(256, "big"):
+                errors.append(f"{swhere}: blinded_hex is not EMSA-PSS(token_input) * r^e mod n")
+            sig = int.from_bytes(got.get("blind_signature_hex", b""), "big")
+            if pow(sig, e, n) != blinded:
+                errors.append(f"{swhere}: blind_signature_hex does not verify under the issuer key")
+            authenticator = (sig * pow(r, -1, n)) % n
+            if got.get("token_hex") != token_input + authenticator.to_bytes(256, "big"):
+                errors.append(f"{swhere}: token_hex is not token_input || blind_signature * r^-1 mod n")
+
+
 def main() -> int:
     vector_files = sorted(ROOT.glob("*.json"))
     if not vector_files:
@@ -606,6 +754,8 @@ def main() -> int:
             check_announcements(file.name, data)
         if file.name == "pf_attribution.json":
             check_pf_attribution(file.name, data)
+        if file.name == "token_blinding_v1.json":
+            check_token_blinding(file.name, data)
         if f"`{file.name}`" not in readme:
             errors.append(f"README.md: contents table does not list {file.name}")
 
