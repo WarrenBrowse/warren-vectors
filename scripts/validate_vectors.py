@@ -26,7 +26,9 @@ def check_hex_fields(name: str, node, path: str) -> None:
                 # Optional fields (e.g. tunnel_ipv6_hex) may be null.
                 if value is None:
                     continue
-                if not isinstance(value, str) or not HEX_RE.match(value):
+                # A list of ids (e.g. exit_ids_hex) holds one hex string each.
+                items = value if isinstance(value, list) else [value]
+                if not all(isinstance(v, str) and HEX_RE.match(v) for v in items):
                     errors.append(f"{name}: {child} is not even-length lowercase hex")
                 continue
             if key == "signed_json":
@@ -816,6 +818,109 @@ def check_route_admission(name: str, data) -> None:
             errors.append(f"{name}: invalid_opens.{case.get('name')} opens, it must be refused")
 
 
+ROUTE_KEM_SIG_DOMAIN = b"warren/route-kem-sig/v1"
+ROUTE_KEM_SIG_OUTCOMES = {"bad_signature", "expired", "unsigned", "malformed"}
+
+
+def _route_kem_verdict(server_pk: bytes, block, now: int) -> str:
+    """What a client concludes from one route_admission block: `ok` or the
+    outcome that refuses its key, recomputed with ed25519_ref."""
+    import ed25519_ref
+
+    signed = block.get("kem_signature")
+    if signed is None:
+        return "unsigned"
+    signature = bytes.fromhex(signed["signature_hex"])
+    if len(signature) != 64:
+        return "malformed"
+    if now >= signed["valid_until"]:
+        return "expired"
+    msg = (
+        ROUTE_KEM_SIG_DOMAIN
+        + block["version"].to_bytes(4, "big")
+        + bytes([block["kem_key_id"]])
+        + bytes.fromhex(block["kem_pubkey_hex"])
+        + signed["valid_until"].to_bytes(8, "big")
+    )
+    return "ok" if ed25519_ref.verify(server_pk, msg, signature) else "bad_signature"
+
+
+def check_route_kem_signature(name: str, data) -> None:
+    """Recomputes the route KEM signature vector with the standard-library
+    Ed25519 of ed25519_ref.py and the HPKE of hpke_x25519.py, independently
+    of the generator's signer and of every Warren implementation: the server
+    key from the seed, the KEM key the same seed derives, the 68-byte message,
+    the deterministic signature, the served block, and the outcome of every
+    invalid case."""
+    import ed25519_ref
+    import hpke_x25519 as hpke
+
+    if data.get("version") != 1 or data.get("domain_utf8") != ROUTE_KEM_SIG_DOMAIN.decode():
+        errors.append(f"{name}: version must be 1 and the domain 'warren/route-kem-sig/v1'")
+        return
+    try:
+        seed = bytes.fromhex(data["signer"]["signing_seed_hex"])
+        server_pk = bytes.fromhex(data["signer"]["server_pubkey_hex"])
+        kem = data["kem_key"]
+        key_id = kem["key_id"]
+        kem_pk = bytes.fromhex(kem["pk_hex"])
+        valid_until = data["valid_until"]
+        verify_at = data["verify_at"]
+        served = json.loads(data["route_admission_json"])
+        cases = data["invalid"]
+    except (KeyError, TypeError, ValueError, AttributeError, json.JSONDecodeError) as exc:
+        errors.append(f"{name}: field missing or malformed ({exc!r})")
+        return
+    if ed25519_ref.public_key(seed) != server_pk:
+        errors.append(f"{name}: signer.server_pubkey_hex is not the Ed25519 key of the seed")
+    ikm = hpke.hkdf_expand(hpke.hkdf_extract(b"", seed), b"warren/route-kem/v1" + bytes([key_id]), 32)
+    if kem.get("signing_seed_hex") != seed.hex() or hpke.derive_key_pair(ikm)[1] != kem_pk:
+        errors.append(f"{name}: kem_key.pk_hex is not the route KEM key the signing seed derives")
+    msg = ROUTE_KEM_SIG_DOMAIN + (1).to_bytes(4, "big") + bytes([key_id]) + kem_pk + valid_until.to_bytes(8, "big")
+    if data.get("message_hex") != msg.hex() or data.get("message_len") != len(msg) or len(msg) != 68:
+        errors.append(f"{name}: message_hex is not domain || version BE || key_id || kem_pk || valid_until BE")
+    signature = ed25519_ref.sign(seed, msg)
+    if data.get("signature_hex") != signature.hex():
+        errors.append(f"{name}: signature_hex is not the Ed25519 signature of message_hex under the seed")
+    expected_block = {
+        "version": 1,
+        "kem_key_id": key_id,
+        "kem_pubkey_hex": kem_pk.hex(),
+        "max_routes_per_anchor": served.get("max_routes_per_anchor"),
+        "exit_ids_hex": served.get("exit_ids_hex"),
+        "kem_signature": {"valid_until": valid_until, "signature_hex": signature.hex()},
+    }
+    if served != expected_block or list(served.keys()) != list(expected_block.keys()):
+        errors.append(f"{name}: route_admission_json is not the served block in its field order")
+    if json.dumps(served, separators=(",", ":")) != data["route_admission_json"]:
+        errors.append(f"{name}: route_admission_json is not the compact serialisation")
+    if not verify_at < valid_until or _route_kem_verdict(server_pk, served, verify_at) != "ok":
+        errors.append(f"{name}: the served block does not verify at verify_at")
+
+    if not isinstance(cases, list) or not cases:
+        errors.append(f"{name}: invalid must be a non-empty list")
+        return
+    names = [c.get("name") for c in cases if isinstance(c, dict)]
+    if len(names) != len(cases) or len(set(names)) != len(names):
+        errors.append(f"{name}: invalid entries must be objects with unique names")
+    seen = set()
+    for case in cases:
+        expect = case.get("expect")
+        if expect not in ROUTE_KEM_SIG_OUTCOMES:
+            errors.append(f"{name}: invalid.{case.get('name')} expects {expect!r}, not one of {sorted(ROUTE_KEM_SIG_OUTCOMES)}")
+            continue
+        seen.add(expect)
+        try:
+            verdict = _route_kem_verdict(server_pk, case["block"], case["now"])
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+            errors.append(f"{name}: invalid.{case.get('name')} is malformed ({exc!r})")
+            continue
+        if verdict != expect:
+            errors.append(f"{name}: invalid.{case.get('name')} gives {verdict}, expected {expect}")
+    if seen != ROUTE_KEM_SIG_OUTCOMES:
+        errors.append(f"{name}: invalid must exercise every outcome {sorted(ROUTE_KEM_SIG_OUTCOMES)}")
+
+
 def check_control_discriminants(name: str, data) -> None:
     """A control vector that names its discriminant must carry it as the byte
     after the marker and version, so an appended variant can never renumber
@@ -857,6 +962,8 @@ def main() -> int:
             check_token_blinding(file.name, data)
         if file.name == "route_admission_v1.json":
             check_route_admission(file.name, data)
+        if file.name == "route_kem_signature_v1.json":
+            check_route_kem_signature(file.name, data)
         if file.name == "control.json":
             check_control_discriminants(file.name, data)
         if f"`{file.name}`" not in readme:

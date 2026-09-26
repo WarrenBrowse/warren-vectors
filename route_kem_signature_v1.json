@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "_comment": "Route KEM key signature v1 (warren-core doc 107 section 6.5). The API signs the route KEM key it serves in the route_admission block of GET /v1/tokens/keys with its Ed25519 server key, the key whose public half every client already pins for the signed relay list and the multi-hop directory envelope. message = 'warren/route-kem-sig/v1' (23 bytes) || block version (u32 BE) || kem_key_id (u8) || kem_pubkey (32 bytes, X25519) || valid_until (u64 BE, unix seconds), 68 bytes. A client uses the key only when the signature verifies under a pinned server key and now < valid_until; max_routes_per_anchor and exit_ids_hex are not covered, since a forged value there can only cost the client route admission. The signing seed is the one route_admission_v1.json derives its KEM key from. Every invalid case must be refused with its expect outcome. Synthetic inputs only.",
+  "domain_utf8": "warren/route-kem-sig/v1",
+  "message_len": 68,
+  "signer": {
+    "signing_seed_hex": "7171717171717171717171717171717171717171717171717171717171717171",
+    "server_pubkey_hex": "e2fe2a39b7326642827d6d82d497622cd6c297fe78270eaa436b01f086b6f3cb"
+  },
+  "kem_key": {
+    "signing_seed_hex": "7171717171717171717171717171717171717171717171717171717171717171",
+    "key_id": 1,
+    "pk_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f"
+  },
+  "valid_until": 1790035200,
+  "verify_at": 1789948800,
+  "message_hex": "77617272656e2f726f7574652d6b656d2d7369672f7631000000010162d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f000000006ab1c500",
+  "signature_hex": "d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc04620d",
+  "route_admission_json": "{\"version\":1,\"kem_key_id\":1,\"kem_pubkey_hex\":\"62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f\",\"max_routes_per_anchor\":32,\"exit_ids_hex\":[\"a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2\"],\"kem_signature\":{\"valid_until\":1790035200,\"signature_hex\":\"d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc04620d\"}}",
+  "invalid": [
+    {
+      "name": "substituted_kem_key",
+      "_comment": "Another KEM key under the served signature: what a TLS interceptor would serve.",
+      "now": 1789948800,
+      "block": {
+        "version": 1,
+        "kem_key_id": 1,
+        "kem_pubkey_hex": "56145b760cc58a90456df396a433cc6f0f7bcd03ddddf26c739b83f95195b37f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ],
+        "kem_signature": {
+          "valid_until": 1790035200,
+          "signature_hex": "d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc04620d"
+        }
+      },
+      "expect": "bad_signature"
+    },
+    {
+      "name": "substituted_kem_key_signed_by_another_key",
+      "_comment": "Another KEM key signed by a key no client pins.",
+      "now": 1789948800,
+      "block": {
+        "version": 1,
+        "kem_key_id": 1,
+        "kem_pubkey_hex": "56145b760cc58a90456df396a433cc6f0f7bcd03ddddf26c739b83f95195b37f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ],
+        "kem_signature": {
+          "valid_until": 1790035200,
+          "signature_hex": "23e009e4cc505ce6057853d07640191b5924c804d93f6758f44971d1c71dabb994abd91f52e48b0deacdc95839e0195a1b1959a811069565874baa2135745c09"
+        }
+      },
+      "expect": "bad_signature"
+    },
+    {
+      "name": "other_key_id",
+      "_comment": "The key id is signed: a blob sealed under it would be opened with another key.",
+      "now": 1789948800,
+      "block": {
+        "version": 1,
+        "kem_key_id": 2,
+        "kem_pubkey_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ],
+        "kem_signature": {
+          "valid_until": 1790035200,
+          "signature_hex": "d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc04620d"
+        }
+      },
+      "expect": "bad_signature"
+    },
+    {
+      "name": "extended_validity",
+      "_comment": "The validity is signed: an old signature cannot be stretched.",
+      "now": 1789948800,
+      "block": {
+        "version": 1,
+        "kem_key_id": 1,
+        "kem_pubkey_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ],
+        "kem_signature": {
+          "valid_until": 1790121600,
+          "signature_hex": "d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc04620d"
+        }
+      },
+      "expect": "bad_signature"
+    },
+    {
+      "name": "other_block_version",
+      "_comment": "The block version is signed.",
+      "now": 1789948800,
+      "block": {
+        "version": 2,
+        "kem_key_id": 1,
+        "kem_pubkey_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ],
+        "kem_signature": {
+          "valid_until": 1790035200,
+          "signature_hex": "d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc04620d"
+        }
+      },
+      "expect": "bad_signature"
+    },
+    {
+      "name": "expired",
+      "_comment": "valid_until is exclusive: at that second the signature no longer vouches for the key.",
+      "now": 1790035200,
+      "block": {
+        "version": 1,
+        "kem_key_id": 1,
+        "kem_pubkey_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ],
+        "kem_signature": {
+          "valid_until": 1790035200,
+          "signature_hex": "d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc04620d"
+        }
+      },
+      "expect": "expired"
+    },
+    {
+      "name": "unsigned",
+      "_comment": "A block with no signature is never trusted: route admission is unavailable.",
+      "now": 1789948800,
+      "block": {
+        "version": 1,
+        "kem_key_id": 1,
+        "kem_pubkey_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ]
+      },
+      "expect": "unsigned"
+    },
+    {
+      "name": "truncated_signature",
+      "_comment": "A signature that is not 64 bytes is malformed.",
+      "now": 1789948800,
+      "block": {
+        "version": 1,
+        "kem_key_id": 1,
+        "kem_pubkey_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f",
+        "max_routes_per_anchor": 32,
+        "exit_ids_hex": [
+          "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+        ],
+        "kem_signature": {
+          "valid_until": 1790035200,
+          "signature_hex": "d529c1872def629b4b0e56e66dc527e063b4dacabc6f7b6e17298e087abb14d170292ec8ec179ce3c705f8400407712f15eb6a5ffd64c8b532bdb1a0cc0462"
+        }
+      },
+      "expect": "malformed"
+    }
+  ]
+}
