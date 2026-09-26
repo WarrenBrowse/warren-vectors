@@ -96,6 +96,82 @@
         "max_blocking_frac": 0.0
       },
       "bytes_hex": "c003010a420007180a42000100000001011a3032654e706a594541476a506a4547526e5141514342325141499a9999999999b93f0000000000000000"
+    },
+    {
+      "name": "ip_request_route_minimal",
+      "_comment": "IpRequestRoute (doc 107 section 7.1): variant tag 7, prefer_ipv4 None, wants_ipv6 false, the 81-byte route locator raw (the locator_seal of route_admission_v1.json), wants_daita false. No token, no wallet key, no proof of possession. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 7,
+      "wants_ipv6": false,
+      "route_locator_hex": "01e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b158701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d1",
+      "wants_daita": false,
+      "bytes_hex": "c00307000001e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b158701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d100"
+    },
+    {
+      "name": "ip_request_route_full",
+      "_comment": "IpRequestRoute with prefer_ipv4 Some(10.66.0.42), wants_ipv6 true, wants_daita true. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 7,
+      "prefer_ipv4": [
+        10,
+        66,
+        0,
+        42
+      ],
+      "wants_ipv6": true,
+      "route_locator_hex": "01e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b158701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d1",
+      "wants_daita": true,
+      "bytes_hex": "c00307010a42002a0101e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b158701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d101"
+    },
+    {
+      "name": "route_rejected_anchor_unknown",
+      "_comment": "RouteRejected (section 7.2): variant tag 8, reason_code 1 = anchor unknown. Codes: 0 unspecified, 1 anchor unknown, 2 route limit, 3 not offered, 4 unavailable. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 8,
+      "reason_code": 1,
+      "bytes_hex": "c0030801"
+    },
+    {
+      "name": "route_rejected_route_limit",
+      "_comment": "RouteRejected with reason_code 2 = route limit. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 8,
+      "reason_code": 2,
+      "bytes_hex": "c0030802"
+    },
+    {
+      "name": "route_anchor_request",
+      "_comment": "RouteAnchorRequest (section 7.3): variant tag 9, the 81-byte sealed anchor raw (the anchor_seal of route_admission_v1.json), session_token None. 85 bytes. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 9,
+      "sealed_anchor_hex": "011a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be",
+      "bytes_hex": "c00309011a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be00"
+    },
+    {
+      "name": "route_anchor_request_with_token",
+      "_comment": "RouteAnchorRequest carrying a session token after a needs_token ack: Some, then the 354 raw token bytes with no length prefix, as in IpRequestV7. 439 bytes. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 9,
+      "sealed_anchor_hex": "011a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be",
+      "session_token_hex": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "bytes_hex": "c00309011a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be01cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+    },
+    {
+      "name": "route_anchor_ack_bound",
+      "_comment": "RouteAnchorAck (section 7.4): variant tag 10, status 0 = bound, max_routes 256 as a postcard varint (two bytes, 0x80 0x02). Status: 0 bound, 1 needs token, 2 not eligible, 3 refused, 4 unavailable, 5 lost. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 10,
+      "status": 0,
+      "max_routes": 256,
+      "bytes_hex": "c0030a008002"
+    },
+    {
+      "name": "route_anchor_ack_lost",
+      "_comment": "RouteAnchorAck with status 5 = lost (the exit's renewal found no anchor; the client resends its request) and max_routes 0. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 10,
+      "status": 5,
+      "max_routes": 0,
+      "bytes_hex": "c0030a0500"
+    },
+    {
+      "name": "route_ended_anchor_gone",
+      "_comment": "RouteEnded (section 7.5): variant tag 11, reason_code 1 = anchor gone. Codes: 0 unspecified, 1 anchor gone, 2 closed by policy. Discriminants 0 to 6 keep their bytes: the variant is appended.",
+      "discriminant": 11,
+      "reason_code": 1,
+      "bytes_hex": "c0030b01"
     }
   ]
 }

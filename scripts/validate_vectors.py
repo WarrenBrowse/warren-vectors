@@ -729,6 +729,105 @@ def check_token_blinding(name: str, data) -> None:
                 errors.append(f"{swhere}: token_hex is not token_input || blind_signature * r^-1 mod n")
 
 
+ROUTE_ANCHOR_INFO = b"warren/route-anchor/v1"
+ROUTE_LOCATOR_INFO = b"warren/route-locator/v1"
+
+
+def check_route_admission(name: str, data) -> None:
+    """Recomputes the route admission vector from its inputs with the
+    standard-library HPKE of hpke_x25519.py, independently of the generator's
+    output and of every Warren implementation: the KEM key pair from the
+    signing seed, both seals from their ephemeral ikm, the associated data,
+    the derived identifiers, that both blobs open, and that every invalid
+    open is refused."""
+    import hashlib
+
+    import hpke_x25519 as hpke
+
+    if data.get("version") != 1 or data.get("sealed_len") != 81:
+        errors.append(f"{name}: version must be 1 and sealed_len 81")
+        return
+    suite = data.get("suite", {})
+    if (suite.get("mode"), suite.get("kem_id"), suite.get("kdf_id"), suite.get("aead_id")) != (0, 0x20, 1, 3):
+        errors.append(f"{name}: suite must be base mode, 0x0020, 0x0001, 0x0003")
+        return
+    try:
+        kem = data["kem_key"]
+        key_id = kem["key_id"]
+        seed = bytes.fromhex(kem["signing_seed_hex"])
+        secret = bytes.fromhex(data["anchor_secret_hex"])
+        anchor = data["anchor_seal"]
+        locator = data["locator_seal"]
+        derived = data["derived"]
+        serial = bytes.fromhex(anchor["serial_hex"])
+        exit_id = bytes.fromhex(locator["exit_id_hex"])
+        cases = data["invalid_opens"]
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        errors.append(f"{name}: field missing or malformed ({exc!r})")
+        return
+    if len(seed) != 32 or len(secret) != 32 or len(serial) != 32 or len(exit_id) != 16:
+        errors.append(f"{name}: seed, secret and serial must be 32 bytes, the exit id 16")
+        return
+    info = b"warren/route-kem/v1" + bytes([key_id])
+    ikm = hpke.hkdf_expand(hpke.hkdf_extract(b"", seed), info, 32)
+    sk, pk = hpke.derive_key_pair(ikm)
+    if kem.get("hkdf_salt_hex") != "" or kem.get("hkdf_info_hex") != info.hex():
+        errors.append(f"{name}: kem_key salt must be empty and info 'warren/route-kem/v1' || key_id")
+    if (kem.get("ikm_hex"), kem.get("sk_hex"), kem.get("pk_hex")) != (ikm.hex(), sk.hex(), pk.hex()):
+        errors.append(f"{name}: kem_key ikm, sk or pk is not HKDF then DeriveKeyPair of the signing seed")
+
+    def check_seal(label: str, seal: dict, info_bytes: bytes, aad: bytes) -> None:
+        if seal.get("info_utf8") != info_bytes.decode() or seal.get("aad_hex") != aad.hex():
+            errors.append(f"{name}: {label} info or aad is not the doc 107 layout")
+        enc, ct = hpke.seal_base(pk, info_bytes, aad, secret, bytes.fromhex(seal.get("eph_ikm_hex", "")))
+        sealed = bytes([key_id]) + enc + ct
+        if (seal.get("enc_hex"), seal.get("ct_hex"), seal.get("sealed_hex")) != (enc.hex(), ct.hex(), sealed.hex()):
+            errors.append(f"{name}: {label} enc, ct or sealed is not the HPKE seal of the anchor secret")
+        if hpke.open_base(sk, enc, info_bytes, aad, ct) != secret:
+            errors.append(f"{name}: {label} does not open back to the anchor secret")
+
+    check_seal("anchor_seal", anchor, ROUTE_ANCHOR_INFO, ROUTE_ANCHOR_INFO + serial)
+    check_seal("locator_seal", locator, ROUTE_LOCATOR_INFO, ROUTE_LOCATOR_INFO + exit_id)
+
+    anchor_ref = hashlib.sha256(b"warren/route-anchor-ref/v1" + secret).digest()
+    route_exit = bytes.fromhex(derived.get("exit_id_hex", ""))
+    route_serial = hashlib.sha256(b"warren/route-serial/v1" + anchor_ref + route_exit).digest()
+    if derived.get("anchor_ref_hex") != anchor_ref.hex() or derived.get("route_serial_hex") != route_serial.hex():
+        errors.append(f"{name}: derived anchor_ref or route_serial is not the doc 107 section 6.4 hash")
+
+    if not isinstance(cases, list) or not cases:
+        errors.append(f"{name}: invalid_opens must be a non-empty list")
+        return
+    for case in cases:
+        blob = bytes.fromhex(case.get("sealed_hex", ""))
+        if case.get("open_as") == "anchor":
+            info_bytes = ROUTE_ANCHOR_INFO
+            aad = ROUTE_ANCHOR_INFO + bytes.fromhex(case.get("serial_hex", ""))
+        elif case.get("open_as") == "locator":
+            info_bytes = ROUTE_LOCATOR_INFO
+            aad = ROUTE_LOCATOR_INFO + bytes.fromhex(case.get("exit_id_hex", ""))
+        else:
+            errors.append(f"{name}: invalid_opens.{case.get('name')} open_as must be anchor or locator")
+            continue
+        opened = None
+        if len(blob) == 81 and blob[0] == key_id:
+            opened = hpke.open_base(sk, blob[1:33], info_bytes, aad, blob[33:])
+        if opened is not None:
+            errors.append(f"{name}: invalid_opens.{case.get('name')} opens, it must be refused")
+
+
+def check_control_discriminants(name: str, data) -> None:
+    """A control vector that names its discriminant must carry it as the byte
+    after the marker and version, so an appended variant can never renumber
+    the earlier ones unnoticed."""
+    for vector in data.get("vectors", []):
+        if "discriminant" not in vector:
+            continue
+        raw = bytes.fromhex(vector.get("bytes_hex", ""))
+        if raw[:3] != bytes([0xC0, 0x03, vector["discriminant"]]):
+            errors.append(f"{name}: {vector.get('name')} does not start with c0 03 and its discriminant")
+
+
 def main() -> int:
     vector_files = sorted(ROOT.glob("*.json"))
     if not vector_files:
@@ -756,6 +855,10 @@ def main() -> int:
             check_pf_attribution(file.name, data)
         if file.name == "token_blinding_v1.json":
             check_token_blinding(file.name, data)
+        if file.name == "route_admission_v1.json":
+            check_route_admission(file.name, data)
+        if file.name == "control.json":
+            check_control_discriminants(file.name, data)
         if f"`{file.name}`" not in readme:
             errors.append(f"README.md: contents table does not list {file.name}")
 

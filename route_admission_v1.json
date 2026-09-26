@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "_comment": "Route admission by anchor v1 (warren-core doc 107 section 6). HPKE RFC 9180 base mode, single shot, DHKEM(X25519, HKDF-SHA256) 0x0020, HKDF-SHA256 0x0001, ChaCha20Poly1305 0x0003. The API route KEM key pair is DeriveKeyPair(HKDF-SHA256(salt empty, ikm = API signing key secret bytes, info = 'warren/route-kem/v1' || key_id, 32 bytes)). A sealed blob (SealedToApi) is key_id (1 byte) || enc (32) || ciphertext of the 32-byte anchor secret with its 16-byte tag (48), 81 bytes with no length prefix. The anchor registration seals with info 'warren/route-anchor/v1' and associated data that info || the 32-byte token serial the main session was admitted on; the route locator with info 'warren/route-locator/v1' and associated data that info || the 16-byte exit id of the route exit. Each seal here draws its ephemeral key from DeriveKeyPair(eph_ikm) instead of randomness, so the bytes are reproducible. anchor_ref = SHA-256('warren/route-anchor-ref/v1' || secret) and route_serial = SHA-256('warren/route-serial/v1' || anchor_ref || exit_id). Every invalid_opens case must be refused by the opener. Synthetic inputs only.",
+  "suite": {
+    "mode": 0,
+    "kem_id": 32,
+    "kdf_id": 1,
+    "aead_id": 3
+  },
+  "sealed_len": 81,
+  "kem_key": {
+    "signing_seed_hex": "7171717171717171717171717171717171717171717171717171717171717171",
+    "key_id": 1,
+    "hkdf_salt_hex": "",
+    "hkdf_info_hex": "77617272656e2f726f7574652d6b656d2f763101",
+    "ikm_hex": "4d96719d007b82831eec4f6047168697d2e7104f576f3591456ae5b0acae7185",
+    "sk_hex": "dec311dc303e0c0e580c705f30b09aca1f0663ba93a0e78bb2b16dd1b78827c7",
+    "pk_hex": "62d92807164a44a02cb0ab4a119528972e388ff564613ca43d91f0b56dacce1f"
+  },
+  "anchor_secret_hex": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+  "anchor_seal": {
+    "serial_hex": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+    "info_utf8": "warren/route-anchor/v1",
+    "aad_hex": "77617272656e2f726f7574652d616e63686f722f76315e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e",
+    "eph_ikm_hex": "1111111111111111111111111111111111111111111111111111111111111111",
+    "enc_hex": "1a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639",
+    "ct_hex": "da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be",
+    "sealed_hex": "011a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be"
+  },
+  "locator_seal": {
+    "exit_id_hex": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+    "info_utf8": "warren/route-locator/v1",
+    "aad_hex": "77617272656e2f726f7574652d6c6f6361746f722f7631a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+    "eph_ikm_hex": "2222222222222222222222222222222222222222222222222222222222222222",
+    "enc_hex": "e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b15",
+    "ct_hex": "8701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d1",
+    "sealed_hex": "01e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b158701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d1"
+  },
+  "derived": {
+    "anchor_ref_domain_utf8": "warren/route-anchor-ref/v1",
+    "anchor_ref_hex": "f0075d65af62cf18ec9fbdff7f93125e17ca4013eed3eed313748db9abd3cc15",
+    "route_serial_domain_utf8": "warren/route-serial/v1",
+    "exit_id_hex": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+    "route_serial_hex": "beb8ec21b030e7b08f946a7dc8e957d542f70ddfd34b0772324d88f9f4ea0f20"
+  },
+  "invalid_opens": [
+    {
+      "name": "anchor_opened_with_another_serial",
+      "_comment": "The anchor blob is bound to the serial of the main session that sent it.",
+      "sealed_hex": "011a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be",
+      "open_as": "anchor",
+      "serial_hex": "5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f"
+    },
+    {
+      "name": "locator_opened_by_another_exit",
+      "_comment": "A locator sealed for one exit opens only when that exit presents it.",
+      "sealed_hex": "01e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b158701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d1",
+      "open_as": "locator",
+      "exit_id_hex": "a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3"
+    },
+    {
+      "name": "anchor_blob_presented_as_locator",
+      "_comment": "The info strings separate the two uses: an anchor blob is never a locator.",
+      "sealed_hex": "011a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be",
+      "open_as": "locator",
+      "exit_id_hex": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+    },
+    {
+      "name": "unknown_key_id",
+      "_comment": "A blob naming a key id the opener does not hold is refused before any HPKE work.",
+      "sealed_hex": "021a239249ea74403babc01f32df9931a16f71ac8972c461d69fed15640e310639da2b21e313c3ef0020c332c40b923e72e5a1470b9b703f7209dd63a47217defd709b3fd62c115974ef11d9c0204db6be",
+      "open_as": "anchor",
+      "serial_hex": "5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e"
+    },
+    {
+      "name": "locator_with_a_flipped_tag_byte",
+      "_comment": "Any altered byte fails the AEAD tag.",
+      "sealed_hex": "01e3b9708aaa21a7f1e62a95ee28d1e5d60b0fceed6c68599013a54b318e9e0b158701981983bae1ce88a0adfdbc0e1da777439d260c6609ad2ba371a40deb5b33da2dc2d6a1ffc1f4faa6be624e90f0d0",
+      "open_as": "locator",
+      "exit_id_hex": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2"
+    }
+  ]
+}
