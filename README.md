@@ -25,7 +25,7 @@ Warren is a VPN by [WarrenBrowse](https://github.com/WarrenBrowse); see
 | `multihop_frame_v2.json` | `/v2` post-quantum multihop frame (postcard, X-Wing hybrid seal) |
 | `xwing_kem.json` | X-Wing (X25519 + ML-KEM-768) KEM known-answer vectors (draft-connolly-cfrg-xwing-kem) |
 | `pq_hpke_seal_v2.json` | `/v2` post-quantum HPKE seal: X-Wing encaps + sealed frame + signed ML-KEM exit descriptor |
-| `control.json` | control `/v3` codec (marker `0xC0 0x03`, DAITA capability echo, and the appended route admission messages: `IpRequestRoute` 7, `RouteRejected` 8, `RouteAnchorRequest` 9, `RouteAnchorAck` 10, `RouteEnded` 11, and the wallet-session refusal `RejectedDeviceLimit` 12) |
+| `control.json` | control `/v3` codec (marker `0xC0 0x03`, DAITA capability echo, and the appended route admission messages: `IpRequestRoute` 7, `RouteRejected` 8, `RouteAnchorRequest` 9, `RouteAnchorAck` 10, `RouteEnded` 11, the wallet-session refusal `RejectedDeviceLimit` 12, and the epoch lease refresh `LeaseRefresh` 13 and `LeaseRefreshAck` 14) |
 | `pop.json` | proof-of-possession |
 | `relays.json` | signed relay list |
 | `multihop_directory.json` | signed multi-hop directory (PKI chain: root, operational, per-node) |

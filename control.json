@@ -178,6 +178,40 @@
       "_comment": "RejectedDeviceLimit (exit to client, setup stream): variant tag 12, no payload. The exit refused a wallet-signed setup because the account already holds its maximum number of simultaneous sessions, or because the deployer no longer admits wallet-signed sessions for it. Fatal like rejected (tag 3), but the client shows a device limit rather than a renew prompt. Discriminants 0 to 11 keep their bytes: the variant is appended.",
       "discriminant": 12,
       "bytes_hex": "c0030c"
+    },
+    {
+      "name": "lease_refresh_announce",
+      "_comment": "LeaseRefresh (client to exit, uplink datagram on a v7 token session): variant tag 13, session_token None. The client announces that it will present a token of each new epoch when its exit asks (warren-core doc 107 section 5.5). 4 bytes. Discriminants 0 to 12 keep their bytes: the variant is appended.",
+      "discriminant": 13,
+      "bytes_hex": "c0030d00"
+    },
+    {
+      "name": "lease_refresh_with_token",
+      "_comment": "LeaseRefresh carrying a token of the current epoch: Some, then the 354 raw token bytes with no length prefix, as in IpRequestV7 and RouteAnchorRequest. The exit spends it and moves the session's lease onto its serial. 358 bytes. Discriminants 0 to 12 keep their bytes: the variant is appended.",
+      "discriminant": 13,
+      "session_token_hex": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "bytes_hex": "c0030d01cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"
+    },
+    {
+      "name": "lease_refresh_ack_refreshed",
+      "_comment": "LeaseRefreshAck (exit to client, downlink datagram): variant tag 14, status 1 = refreshed. Status: 0 registered, 1 refreshed, 2 refused, 3 unavailable, 4 not eligible, 5 due, 6 expired. Discriminants 0 to 12 keep their bytes: the variant is appended.",
+      "discriminant": 14,
+      "status": 1,
+      "bytes_hex": "c0030e01"
+    },
+    {
+      "name": "lease_refresh_ack_due",
+      "_comment": "LeaseRefreshAck with status 5 = due: the session's lease belongs to a past epoch, present a token of the current one. Sent by the exit at each lease renewal while the lease stays stale. Discriminants 0 to 12 keep their bytes: the variant is appended.",
+      "discriminant": 14,
+      "status": 5,
+      "bytes_hex": "c0030e05"
+    },
+    {
+      "name": "lease_refresh_ack_expired",
+      "_comment": "LeaseRefreshAck with status 6 = expired: the exit ends the session because its lease was not refreshed within the grace window, then closes it with the operational close code 0x574D4C31 (WML1), which a client treats as a loss and redials. Discriminants 0 to 12 keep their bytes: the variant is appended.",
+      "discriminant": 14,
+      "status": 6,
+      "bytes_hex": "c0030e06"
     }
   ]
 }
