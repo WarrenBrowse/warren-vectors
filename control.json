@@ -212,6 +212,27 @@
       "discriminant": 14,
       "status": 6,
       "bytes_hex": "c0030e06"
+    },
+    {
+      "name": "ip_request_v7_detailed",
+      "_comment": "IpRequestV7Detailed (client to exit, setup stream): variant tag 15, the fields of IpRequestV7 in the same order (prefer_ipv4 None, wants_ipv6 false, one session token as a length-prefixed sequence of the 354 raw token bytes, wants_daita false). 361 bytes. The client sends it instead of IpRequestV7 to say that it decodes TokenRejected: an exit answers a refused IpRequestV7Detailed with TokenRejected and a refused IpRequestV7 with the plain rejected (tag 3) every deployed client reads as a token refusal. An exit that predates the variant decodes nothing and answers the plain rejected, which tells the client to present the same token as IpRequestV7 to that exit. Discriminants 0 to 14 keep their bytes: the variant is appended.",
+      "discriminant": 15,
+      "session_token_hex": "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "bytes_hex": "c0030f000001cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd00"
+    },
+    {
+      "name": "token_rejected_unspecified",
+      "_comment": "TokenRejected (exit to client, setup stream, the answer to a refused IpRequestV7Detailed): variant tag 16, reason_code 0 = unspecified, the token did not verify or the exit could not spend it. Codes: 0 unspecified, 1 serial in use. A code the client does not know reads as unspecified. Sent before the same opaque close as every refusal. Discriminants 0 to 15 keep their bytes: the variant is appended.",
+      "discriminant": 16,
+      "reason_code": 0,
+      "bytes_hex": "c0031000"
+    },
+    {
+      "name": "token_rejected_serial_in_use",
+      "_comment": "TokenRejected with reason_code 1 = serial in use: the token verified but its serial is leased to a live session elsewhere, which is another device of the same wallet. A client that sees every token of its stack refused this way holds none of the wallet's device slots and reports the device limit. Discriminants 0 to 15 keep their bytes: the variant is appended.",
+      "discriminant": 16,
+      "reason_code": 1,
+      "bytes_hex": "c0031001"
     }
   ]
 }
