@@ -585,6 +585,31 @@ def check_pf_attribution(name: str, data) -> None:
 
 TOKEN_BLINDING_SALT = b"warren/token-blinding/v1"
 TOKEN_BLINDING_PURPOSES = {"browser-proxy/v1", "session/v1"}
+TOKEN_BLINDING_PORT_ENTITLEMENT_PURPOSE = "port-entitlement/v1"
+
+
+def check_token_blinding_port_entitlement(name: str, data: dict) -> None:
+    """The port-entitlement class key: HKDF of token_blinding_v1's wallet seed
+    under the shared salt, with a purpose of its own."""
+    if data.get("version") != 1:
+        errors.append(f"{name}: version must be 1")
+        return
+    if data.get("salt_utf8") != TOKEN_BLINDING_SALT.decode():
+        errors.append(f"{name}: salt_utf8 must be {TOKEN_BLINDING_SALT.decode()!r}")
+    if data.get("purpose") != TOKEN_BLINDING_PORT_ENTITLEMENT_PURPOSE:
+        errors.append(f"{name}: purpose must be {TOKEN_BLINDING_PORT_ENTITLEMENT_PURPOSE!r}")
+        return
+    try:
+        seed = bytes.fromhex(data["wallet"]["seed_hex"])
+        key = bytes.fromhex(data["key_hex"])
+        base = json.loads((ROOT / "token_blinding_v1.json").read_text(encoding="utf-8"))
+    except (KeyError, TypeError, ValueError, AttributeError, OSError) as exc:
+        errors.append(f"{name}: wallet or key field missing or malformed ({exc!r})")
+        return
+    if data["wallet"] != base.get("wallet"):
+        errors.append(f"{name}: wallet must be token_blinding_v1.json's")
+    if key != _hkdf_sha256(seed, TOKEN_BLINDING_SALT, data["purpose"].encode(), 32):
+        errors.append(f"{name}: key_hex is not HKDF(seed, salt, purpose)")
 
 
 def _hkdf_sha256(ikm: bytes, salt: bytes, info: bytes, length: int) -> bytes:
@@ -960,6 +985,8 @@ def main() -> int:
             check_pf_attribution(file.name, data)
         if file.name == "token_blinding_v1.json":
             check_token_blinding(file.name, data)
+        if file.name == "token_blinding_port_entitlement_v1.json":
+            check_token_blinding_port_entitlement(file.name, data)
         if file.name == "route_admission_v1.json":
             check_route_admission(file.name, data)
         if file.name == "route_kem_signature_v1.json":

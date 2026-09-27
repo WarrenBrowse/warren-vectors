@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "_comment": "Wallet-derived blinding key of the port-entitlement class v1 (warren-core doc 99): HKDF-SHA256 of the 32-byte wallet seed, salt salt_utf8, info the purpose. A batch is derived from this key exactly as token_blinding_v1.json derives one from a session or browser-proxy key (same per-slot stream, same draw order). Its own file because the purpose set of token_blinding_v1.json is pinned exactly by its replays. The wallet is token_blinding_v1.json's.",
+  "salt_utf8": "warren/token-blinding/v1",
+  "wallet": {
+    "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    "seed_hex": "5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc1"
+  },
+  "purpose": "port-entitlement/v1",
+  "key_hex": "2a8c65a9dc53231af53d1fa7c75b986c3ee2cd8ee10af00be540279e02cc4770"
+}
