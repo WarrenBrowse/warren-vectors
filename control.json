@@ -172,6 +172,12 @@
       "discriminant": 11,
       "reason_code": 1,
       "bytes_hex": "c0030b01"
+    },
+    {
+      "name": "rejected_device_limit",
+      "_comment": "RejectedDeviceLimit (exit to client, setup stream): variant tag 12, no payload. The exit refused a wallet-signed setup because the account already holds its maximum number of simultaneous sessions, or because the deployer no longer admits wallet-signed sessions for it. Fatal like rejected (tag 3), but the client shows a device limit rather than a renew prompt. Discriminants 0 to 11 keep their bytes: the variant is appended.",
+      "discriminant": 12,
+      "bytes_hex": "c0030c"
     }
   ]
 }
