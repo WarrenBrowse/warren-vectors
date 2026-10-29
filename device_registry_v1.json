@@ -1,0 +1,164 @@
+{
+  "_comment": "Golden wire vectors for the device registry (warren-core docs/115-DEVICE-REGISTRY.md section 5), minted by warren-core's crates/warren-conformance/tests/device_registry.rs from the warren_contract::dto types. Every route is wallet-signed (X-Warren). A device id is 16 random bytes as base64url without padding; every spelling in invalid_device_ids must be refused. Each case's json is the exact object the DTO serializes to: absent optionals are omitted, never null, and a reader ignores unknown fields. A platform outside the closed set reads as other, so a newer server's list still parses; a client never registers as other. POST /v1/devices answers a bare 409 past the account's device cap and a bare 404 on a server without the registry; the refusals below are the 403 bodies of a registration, an issuance or a device route. Synthetic values only.",
+  "device_id": {
+    "b64url": "AAECAwQFBgcICQoLDA0ODw",
+    "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+  },
+  "device_id_url_alphabet": {
+    "b64url": "_____________________w",
+    "bytes_hex": "ffffffffffffffffffffffffffffffff"
+  },
+  "device_list_response": {
+    "_endpoint": "GET /v1/devices?device_id=AAECAwQFBgcICQoLDA0ODw",
+    "json": {
+      "devices": [
+        {
+          "app_version": "1.1.55",
+          "device_id": "AAECAwQFBgcICQoLDA0ODw",
+          "last_seen_on": "2026-10-29",
+          "name": "calm heron",
+          "platform": "browser",
+          "registered_on": "2026-10-28",
+          "this_device": true
+        },
+        {
+          "app_version": "1.1.55",
+          "device_id": "_____________________w",
+          "last_seen_on": "2026-10-29",
+          "name": "swift otter",
+          "platform": "android",
+          "registered_on": "2026-10-28",
+          "this_device": false
+        }
+      ],
+      "older_client_seen_on": "2026-10-27"
+    }
+  },
+  "device_list_response_without_older_client": {
+    "_endpoint": "GET /v1/devices",
+    "json": {
+      "devices": [
+        {
+          "app_version": "1.1.55",
+          "device_id": "_____________________w",
+          "last_seen_on": "2026-10-29",
+          "name": "swift otter",
+          "platform": "android",
+          "registered_on": "2026-10-28",
+          "this_device": false
+        }
+      ]
+    }
+  },
+  "device_registration": {
+    "_endpoint": "POST /v1/devices",
+    "json": {
+      "app_version": "0.1.8",
+      "device_id": "AAECAwQFBgcICQoLDA0ODw",
+      "name": "calm heron",
+      "platform": "browser"
+    }
+  },
+  "device_rename": {
+    "_endpoint": "PATCH /v1/devices/AAECAwQFBgcICQoLDA0ODw",
+    "json": {
+      "name": "kitchen laptop"
+    }
+  },
+  "device_view": {
+    "_endpoint": "POST /v1/devices answer",
+    "json": {
+      "app_version": "1.1.55",
+      "device_id": "AAECAwQFBgcICQoLDA0ODw",
+      "last_seen_on": "2026-10-29",
+      "name": "calm heron",
+      "platform": "browser",
+      "registered_on": "2026-10-28",
+      "this_device": true
+    }
+  },
+  "invalid_device_ids": [
+    {
+      "_why": "15 bytes",
+      "b64url": "AAECAwQFBgcICQoLDA0O"
+    },
+    {
+      "_why": "17 bytes",
+      "b64url": "AAECAwQFBgcICQoLDA0ODxA"
+    },
+    {
+      "_why": "padded",
+      "b64url": "AAECAwQFBgcICQoLDA0ODw=="
+    },
+    {
+      "_why": "standard alphabet, not url-safe",
+      "b64url": "/////////////////////w"
+    },
+    {
+      "_why": "non-zero trailing bits",
+      "b64url": "AAECAwQFBgcICQoLDA0ODx"
+    },
+    {
+      "_why": "empty",
+      "b64url": ""
+    },
+    {
+      "_why": "not base64url",
+      "b64url": "not base64url!"
+    }
+  ],
+  "platforms": [
+    "android",
+    "ios",
+    "macos",
+    "windows",
+    "linux",
+    "cli",
+    "browser"
+  ],
+  "refusal_device_revoked": {
+    "_status": 403,
+    "json": {
+      "error": "device_revoked"
+    }
+  },
+  "refusal_device_unregistered": {
+    "_status": 403,
+    "json": {
+      "error": "device_unregistered"
+    }
+  },
+  "token_issue_request_with_device": {
+    "_endpoint": "POST /v1/tokens/issue",
+    "json": {
+      "device_id": "AAECAwQFBgcICQoLDA0ODw",
+      "epochs": [
+        {
+          "blinded": [
+            "YmxpbmQ",
+            "YmxpbmQy"
+          ],
+          "epoch": 498112
+        }
+      ]
+    }
+  },
+  "token_issue_request_without_device": {
+    "_endpoint": "POST /v1/tokens/issue",
+    "json": {
+      "epochs": [
+        {
+          "blinded": [
+            "YmxpbmQ",
+            "YmxpbmQy"
+          ],
+          "epoch": 498112
+        }
+      ]
+    }
+  },
+  "unknown_platform": {
+    "json": "vision_os",
+    "reads_as": "other"
+  }
+}
