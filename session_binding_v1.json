@@ -40,6 +40,12 @@
         "name": "setup_refused_replayed"
       },
       {
+        "_comment": "tag 20, code 3: the exit cannot vouch for the setup's freshness now (its recent-key set is full, or it restarted within the retention window); another exit",
+        "bytes_hex": "c0031403",
+        "discriminant": 20,
+        "name": "setup_refused_busy"
+      },
+      {
         "_comment": "tag 21: the new epoch's raw 32-byte key (that of rekey_frame_v2), then new_epoch 1 as a varint",
         "bytes_hex": "c003157d904be3bcab1a910c65ac4b0a2cdd16a846ad8a0ac72db31cc3e47671d30e0201",
         "discriminant": 21,
