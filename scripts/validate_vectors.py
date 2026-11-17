@@ -958,6 +958,40 @@ def check_control_discriminants(name: str, data) -> None:
             errors.append(f"{name}: {vector.get('name')} does not start with c0 03 and its discriminant")
 
 
+def check_session_binding(name: str, data) -> None:
+    """Recompute the dated proof of possession with ed25519_ref and pin the
+    control discriminants of session_binding_v1.json."""
+    import ed25519_ref
+
+    pop = data.get("pop_v3", {})
+    try:
+        context = bytes.fromhex(pop["context_hex"])
+        preimage = (
+            context
+            + bytes.fromhex(pop["exit_id_hex"])
+            + bytes.fromhex(pop["encapsulated_key_hex"])
+            + int(pop["client_unix_secs"]).to_bytes(8, "big")
+        )
+        seed = bytes.fromhex(pop["signing_key_seed_hex"])
+        signature = bytes.fromhex(pop["signature_hex"])
+    except (KeyError, TypeError, ValueError) as exc:
+        errors.append(f"{name}: pop_v3 is malformed ({exc!r})")
+        return
+    if context != pop.get("context_utf8", "").encode() or context != b"warren/multihop/pop/v3":
+        errors.append(f"{name}: pop_v3 context is not warren/multihop/pop/v3")
+    if preimage.hex() != pop.get("preimage_hex"):
+        errors.append(f"{name}: pop_v3 preimage is not context || exit_id || key || time (u64 BE)")
+    if ed25519_ref.sign(seed, preimage) != signature:
+        errors.append(f"{name}: pop_v3 signature does not recompute from its seed")
+    check_control_discriminants(name, data.get("control", {}))
+    tags = sorted(v.get("discriminant") for v in data.get("control", {}).get("vectors", []))
+    if sorted(set(tags)) != [17, 18, 19, 20, 21]:
+        errors.append(f"{name}: control must cover the discriminants 17 to 21, got {tags}")
+    freshness = data.get("freshness", {})
+    if freshness.get("retention_secs") != 2 * freshness.get("skew_secs", 0):
+        errors.append(f"{name}: retention_secs must be twice skew_secs")
+
+
 def main() -> int:
     vector_files = sorted(ROOT.glob("*.json"))
     if not vector_files:
@@ -993,6 +1027,8 @@ def main() -> int:
             check_route_kem_signature(file.name, data)
         if file.name == "control.json":
             check_control_discriminants(file.name, data)
+        if file.name == "session_binding_v1.json":
+            check_session_binding(file.name, data)
         if f"`{file.name}`" not in readme:
             errors.append(f"README.md: contents table does not list {file.name}")
 

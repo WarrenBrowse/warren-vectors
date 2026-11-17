@@ -1,0 +1,80 @@
+{
+  "_comment": "Session binding and setup freshness on the multi-hop wire (warren-core doc 116). A dated setup request carries the client's wall clock (Unix seconds) after the fields of its legacy request; the exit refuses a time further than skew_secs from its own clock and a setup key it saw within retention_secs. The wallet request's proof of possession is /v3: context || exit_id (16) || encapsulated_key (32) || client_unix_secs (u64 big-endian). SessionRekey travels on the data plane sealed under the PREVIOUS epoch and authorizes the next epoch's key on the connection. control.json and pop.json are unchanged.",
+  "control": {
+    "_comment": "marker 0xC0, version 0x03, postcard payload. Tags 17 to 21 are appended after TokenRejected 16.",
+    "vectors": [
+      {
+        "_comment": "tag 17: the IpRequest fields (prefer_ipv4 Some(10.66.0.42), client_pubkey = the pop_v3 key, wants_ipv6 true, pop_sig = the pop_v3 signature, wants_daita true), then client_unix_secs as a varint",
+        "bytes_hex": "c00311010a42002a01d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c97787370101e7dee50a1c0f64c35ea3aee5b396239870cab5c2d1b0635956c4d310495b30f563bf7db8baf064041c27e179c0bd8a9894927da9e226ea817b050b5b156920070180a4a7da06",
+        "discriminant": 17,
+        "name": "ip_request_dated"
+      },
+      {
+        "_comment": "tag 18: the IpRequestV7Detailed fields (prefer_ipv4 Some(0.0.0.0), wants_ipv6 false, one token of 0xcd, wants_daita false), then client_unix_secs",
+        "bytes_hex": "c0031201000000000001cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd0080a4a7da06",
+        "discriminant": 18,
+        "name": "ip_request_v7_dated"
+      },
+      {
+        "_comment": "tag 19: the IpRequestRoute fields (prefer_ipv4 None, wants_ipv6 true, an 81-byte locator of 0x3c, wants_daita false), then client_unix_secs",
+        "bytes_hex": "c0031300013c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c0080a4a7da06",
+        "discriminant": 19,
+        "name": "ip_request_route_dated"
+      },
+      {
+        "_comment": "tag 20, code 0: not authorized",
+        "bytes_hex": "c0031400",
+        "discriminant": 20,
+        "name": "setup_refused_unspecified"
+      },
+      {
+        "_comment": "tag 20, code 1: the time is too far from the exit's clock",
+        "bytes_hex": "c0031401",
+        "discriminant": 20,
+        "name": "setup_refused_clock_skew"
+      },
+      {
+        "_comment": "tag 20, code 2: the exit already saw this setup key",
+        "bytes_hex": "c0031402",
+        "discriminant": 20,
+        "name": "setup_refused_replayed"
+      },
+      {
+        "_comment": "tag 21: the new epoch's raw 32-byte key (that of rekey_frame_v2), then new_epoch 1 as a varint",
+        "bytes_hex": "c003157d904be3bcab1a910c65ac4b0a2cdd16a846ad8a0ac72db31cc3e47671d30e0201",
+        "discriminant": 21,
+        "name": "session_rekey"
+      }
+    ]
+  },
+  "freshness": {
+    "retention_secs": 240,
+    "skew_secs": 120
+  },
+  "pop_v3": {
+    "_comment": "Ed25519 (RFC 8032) over the preimage. Same exit id, key and seed as pop.json, plus the time.",
+    "client_unix_secs": 1800000000,
+    "context_hex": "77617272656e2f6d756c7469686f702f706f702f7633",
+    "context_utf8": "warren/multihop/pop/v3",
+    "encapsulated_key_hex": "5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c",
+    "exit_id_hex": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "preimage_hex": "77617272656e2f6d756c7469686f702f706f702f7633aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c5c000000006b49d200",
+    "signature_hex": "e7dee50a1c0f64c35ea3aee5b396239870cab5c2d1b0635956c4d310495b30f563bf7db8baf064041c27e179c0bd8a9894927da9e226ea817b050b5b15692007",
+    "signing_key_seed_hex": "1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "rekey_frame_v2": {
+    "_comment": "A SessionRekey sealed under epoch 0 of the deterministic /v2 session of pq_hpke_seal_v2.json (same recipient seeds, exit id 0xa2, m_seed 0x44, x25519 ephemeral seed 0x55). The new key is the ct_X of a second deterministic session (m_seed 0x46, x25519 ephemeral seed 0x57). A DATA frame: empty pq_ct. The sequence number is not reset at a rekey, hence a large one.",
+    "epoch": 0,
+    "epoch0_encapsulated_key_hex": "38ab664bd86f77d7e66bdd9ae0792913a94fd8b33a1260027e4b46c1f4884c67",
+    "epoch0_mlkem768_m_seed_hex": "4444444444444444444444444444444444444444444444444444444444444444",
+    "epoch0_x25519_ephemeral_seed_hex": "5555555555555555555555555555555555555555555555555555555555555555",
+    "epoch1_encapsulated_key_hex": "7d904be3bcab1a910c65ac4b0a2cdd16a846ad8a0ac72db31cc3e47671d30e02",
+    "epoch1_mlkem768_m_seed_hex": "4646464646464646464646464646464646464646464646464646464646464646",
+    "epoch1_x25519_ephemeral_seed_hex": "5757575757575757575757575757575757575757575757575757575757575757",
+    "exit_id_hex": "a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2",
+    "frame_bytes_hex": "02a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a200c3843d38ab664bd86f77d7e66bdd9ae0792913a94fd8b33a1260027e4b46c1f4884c6700f0b8edb3ba5983b2f6e4fa035eb4fb3524828a31108800cbe9b30e1c44d0f0ca520806ceab16a96562f0b758ea2a5b950d4b75f51e",
+    "plaintext_hex": "c003157d904be3bcab1a910c65ac4b0a2cdd16a846ad8a0ac72db31cc3e47671d30e0201",
+    "seq": 1000003
+  },
+  "schema": "session_binding/v1"
+}
