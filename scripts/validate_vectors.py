@@ -946,6 +946,102 @@ def check_route_kem_signature(name: str, data) -> None:
         errors.append(f"{name}: invalid must exercise every outcome {sorted(ROUTE_KEM_SIG_OUTCOMES)}")
 
 
+DEVICE_REVOCATION_DOMAIN = b"warren/device-revocation/v1"
+DEVICE_REVOCATION_OUTCOMES = {"unsigned", "malformed", "bad_signature"}
+
+
+def _device_revocation_verdict(wallet_pk: bytes, device_id: bytes, refusal) -> str:
+    """What the revoked device concludes from a 403 device_revoked body: `ok`
+    (it may erase its identity) or the outcome that makes it keep it,
+    recomputed with ed25519_ref."""
+    import ed25519_ref
+
+    revocation = refusal.get("revocation")
+    if revocation is None:
+        return "unsigned"
+    try:
+        signature = bytes.fromhex(revocation["signature_hex"])
+    except ValueError:
+        return "malformed"
+    if len(signature) != 64:
+        return "malformed"
+    msg = DEVICE_REVOCATION_DOMAIN + wallet_pk + device_id + revocation["revoked_at_unix_secs"].to_bytes(8, "big")
+    return "ok" if ed25519_ref.verify(wallet_pk, msg, signature) else "bad_signature"
+
+
+def check_device_revocation(name: str, data) -> None:
+    """Recomputes the signed device revocation vector with the standard-library
+    Ed25519 of ed25519_ref.py, independently of the generator's signer and of
+    every Warren implementation: the wallet key from the seed, the 83-byte
+    message, the deterministic signature, the request and refusal bodies, and
+    the outcome of every invalid case."""
+    import ed25519_ref
+
+    if data.get("version") != 1 or data.get("domain_utf8") != DEVICE_REVOCATION_DOMAIN.decode():
+        errors.append(f"{name}: version must be 1 and the domain 'warren/device-revocation/v1'")
+        return
+    try:
+        seed = bytes.fromhex(data["wallet"]["signing_seed_hex"])
+        wallet_pk = bytes.fromhex(data["wallet"]["pubkey_hex"])
+        device_id = bytes.fromhex(data["device_id"]["bytes_hex"])
+        b64 = data["device_id"]["b64url"]
+        revoked_at = data["revoked_at_unix_secs"]
+        request = json.loads(data["revocation_request_json"])
+        refusal = json.loads(data["refusal_json"])
+        cases = data["invalid"]
+    except (KeyError, TypeError, ValueError, AttributeError, json.JSONDecodeError) as exc:
+        errors.append(f"{name}: field missing or malformed ({exc!r})")
+        return
+    import base64
+
+    if len(device_id) != 16 or base64.urlsafe_b64encode(device_id).decode().rstrip("=") != b64:
+        errors.append(f"{name}: device_id.b64url is not the unpadded base64url of its 16 bytes")
+    if ed25519_ref.public_key(seed) != wallet_pk:
+        errors.append(f"{name}: wallet.pubkey_hex is not the Ed25519 key of the seed")
+    msg = DEVICE_REVOCATION_DOMAIN + wallet_pk + device_id + revoked_at.to_bytes(8, "big")
+    if data.get("message_hex") != msg.hex() or data.get("message_len") != len(msg) or len(msg) != 83:
+        errors.append(f"{name}: message_hex is not domain || wallet key || device id || revoked_at BE")
+    signature = ed25519_ref.sign(seed, msg)
+    if data.get("signature_hex") != signature.hex():
+        errors.append(f"{name}: signature_hex is not the Ed25519 signature of message_hex under the wallet seed")
+    expected_request = {"revoked_at_unix_secs": revoked_at, "signature_hex": signature.hex()}
+    if request != expected_request or list(request.keys()) != list(expected_request.keys()):
+        errors.append(f"{name}: revocation_request_json is not the statement in its field order")
+    expected_refusal = {"error": "device_revoked", "revocation": expected_request}
+    if refusal != expected_refusal or list(refusal.keys()) != list(expected_refusal.keys()):
+        errors.append(f"{name}: refusal_json is not the device_revoked body carrying the statement")
+    for field, value in (("revocation_request_json", request), ("refusal_json", refusal)):
+        if json.dumps(value, separators=(",", ":")) != data[field]:
+            errors.append(f"{name}: {field} is not the compact serialisation")
+    if _device_revocation_verdict(wallet_pk, device_id, refusal) != "ok":
+        errors.append(f"{name}: the refusal's statement does not verify for its device")
+
+    if not isinstance(cases, list) or not cases:
+        errors.append(f"{name}: invalid must be a non-empty list")
+        return
+    names = [c.get("name") for c in cases if isinstance(c, dict)]
+    if len(names) != len(cases) or len(set(names)) != len(names):
+        errors.append(f"{name}: invalid entries must be objects with unique names")
+    seen = set()
+    for case in cases:
+        expect = case.get("expect")
+        if expect not in DEVICE_REVOCATION_OUTCOMES:
+            errors.append(f"{name}: invalid.{case.get('name')} expects {expect!r}, not one of {sorted(DEVICE_REVOCATION_OUTCOMES)}")
+            continue
+        seen.add(expect)
+        try:
+            verdict = _device_revocation_verdict(wallet_pk, device_id, json.loads(case["refusal_json"]))
+        except (KeyError, TypeError, ValueError, AttributeError, json.JSONDecodeError) as exc:
+            errors.append(f"{name}: invalid.{case.get('name')} is malformed ({exc!r})")
+            continue
+        if verdict != expect:
+            errors.append(f"{name}: invalid.{case.get('name')} gives {verdict}, expected {expect}")
+        if json.loads(case["refusal_json"]).get("error") != "device_revoked":
+            errors.append(f"{name}: invalid.{case.get('name')} must keep the device_revoked error string")
+    if seen != DEVICE_REVOCATION_OUTCOMES:
+        errors.append(f"{name}: invalid must exercise every outcome {sorted(DEVICE_REVOCATION_OUTCOMES)}")
+
+
 def check_control_discriminants(name: str, data) -> None:
     """A control vector that names its discriminant must carry it as the byte
     after the marker and version, so an appended variant can never renumber
@@ -1025,6 +1121,8 @@ def main() -> int:
             check_route_admission(file.name, data)
         if file.name == "route_kem_signature_v1.json":
             check_route_kem_signature(file.name, data)
+        if file.name == "device_revocation_v1.json":
+            check_device_revocation(file.name, data)
         if file.name == "control.json":
             check_control_discriminants(file.name, data)
         if file.name == "session_binding_v1.json":

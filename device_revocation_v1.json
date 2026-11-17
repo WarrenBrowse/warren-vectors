@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "_comment": "Signed device revocation v1 (warren-core doc 115, audit finding X-01). A wallet holder revoking one of its devices signs, with the wallet's Ed25519 key (the X-Warren signing key), message = 'warren/device-revocation/v1' (27 bytes) || wallet public key (32 bytes) || device id (16 bytes) || revoked_at (u64 BE, unix seconds), 83 bytes, and sends {revoked_at_unix_secs, signature_hex} as the body of the wallet-signed DELETE /v1/devices/{device_id}. The API checks it against the signing wallet and the path's device id, stores it, and returns it as the revocation member of every 403 device_revoked body for that device. The revoked device verifies it with its own wallet public key and its own device id: ok means it may erase its identity; any other outcome (unsigned, malformed, bad_signature) means it disconnects and keeps its identity, because nothing proves the wallet holder asked. The refusal stays readable by an older client, which compares the error string and ignores the unknown member. Synthetic inputs only.",
+  "domain_utf8": "warren/device-revocation/v1",
+  "message_len": 83,
+  "wallet": {
+    "signing_seed_hex": "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a",
+    "pubkey_hex": "0d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0"
+  },
+  "device_id": {
+    "b64url": "AAECAwQFBgcICQoLDA0ODw",
+    "bytes_hex": "000102030405060708090a0b0c0d0e0f"
+  },
+  "revoked_at_unix_secs": 1794960000,
+  "message_hex": "77617272656e2f6465766963652d7265766f636174696f6e2f76310d7550754e0800a5d237eef5826035766b9b3e5a15868a940ab289958788e3b0000102030405060708090a0b0c0d0e0f000000006afcea80",
+  "signature_hex": "1148e86c0ab490af4d8b297d63d556f981df8a6508405fbfd9407f6ef329f9d4f47cc031184db32f079938bf967a8b78e41ce8027d0000aa7297008e2074e30c",
+  "revocation_request_json": "{\"revoked_at_unix_secs\":1794960000,\"signature_hex\":\"1148e86c0ab490af4d8b297d63d556f981df8a6508405fbfd9407f6ef329f9d4f47cc031184db32f079938bf967a8b78e41ce8027d0000aa7297008e2074e30c\"}",
+  "refusal_json": "{\"error\":\"device_revoked\",\"revocation\":{\"revoked_at_unix_secs\":1794960000,\"signature_hex\":\"1148e86c0ab490af4d8b297d63d556f981df8a6508405fbfd9407f6ef329f9d4f47cc031184db32f079938bf967a8b78e41ce8027d0000aa7297008e2074e30c\"}}",
+  "invalid": [
+    {
+      "name": "unsigned",
+      "_comment": "The bare refusal every server answered before this vector, and what a server answers for a device revoked by a client that sent no statement.",
+      "refusal_json": "{\"error\":\"device_revoked\"}",
+      "expect": "unsigned"
+    },
+    {
+      "name": "sibling_device",
+      "_comment": "A genuine statement of the same wallet for another of its devices: the API serving one device's revocation to another.",
+      "refusal_json": "{\"error\":\"device_revoked\",\"revocation\":{\"revoked_at_unix_secs\":1794960000,\"signature_hex\":\"7f0f8ffbc180e4c35f4659875cdf706b91f5fa364dd23b1135c4399f749e0a45d23e0d0892bb4d654885443e1adc4689cf9ed75766b0029e38db4c80bbe7cb09\"}}",
+      "expect": "bad_signature"
+    },
+    {
+      "name": "foreign_wallet",
+      "_comment": "A statement for this device id signed by another wallet: whoever forges the answer without the wallet key.",
+      "refusal_json": "{\"error\":\"device_revoked\",\"revocation\":{\"revoked_at_unix_secs\":1794960000,\"signature_hex\":\"b6d03044f188d586b70c07aa4a1684d8ca4c2d7da0f97b7eed3da48b0665bc3e9cdfc7a5a59544e01b3536958b85fdb522ba39e18ab3dc694f073a1f2ede270e\"}}",
+      "expect": "bad_signature"
+    },
+    {
+      "name": "shifted_date",
+      "_comment": "The genuine signature under another revocation date.",
+      "refusal_json": "{\"error\":\"device_revoked\",\"revocation\":{\"revoked_at_unix_secs\":1794960001,\"signature_hex\":\"1148e86c0ab490af4d8b297d63d556f981df8a6508405fbfd9407f6ef329f9d4f47cc031184db32f079938bf967a8b78e41ce8027d0000aa7297008e2074e30c\"}}",
+      "expect": "bad_signature"
+    },
+    {
+      "name": "flipped_bit",
+      "_comment": "The genuine statement with one signature bit flipped.",
+      "refusal_json": "{\"error\":\"device_revoked\",\"revocation\":{\"revoked_at_unix_secs\":1794960000,\"signature_hex\":\"1048e86c0ab490af4d8b297d63d556f981df8a6508405fbfd9407f6ef329f9d4f47cc031184db32f079938bf967a8b78e41ce8027d0000aa7297008e2074e30c\"}}",
+      "expect": "bad_signature"
+    },
+    {
+      "name": "truncated_signature",
+      "_comment": "A 63-byte signature.",
+      "refusal_json": "{\"error\":\"device_revoked\",\"revocation\":{\"revoked_at_unix_secs\":1794960000,\"signature_hex\":\"1148e86c0ab490af4d8b297d63d556f981df8a6508405fbfd9407f6ef329f9d4f47cc031184db32f079938bf967a8b78e41ce8027d0000aa7297008e2074e3\"}}",
+      "expect": "malformed"
+    },
+    {
+      "name": "not_hex",
+      "_comment": "A signature that is not hex.",
+      "refusal_json": "{\"error\":\"device_revoked\",\"revocation\":{\"revoked_at_unix_secs\":1794960000,\"signature_hex\":\"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz\"}}",
+      "expect": "malformed"
+    }
+  ]
+}
